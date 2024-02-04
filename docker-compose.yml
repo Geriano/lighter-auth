@@ -1,0 +1,52 @@
+name: lighter
+services:
+  lighter-zookeeper:
+    container_name: lighter-zookeeper
+    image: bitnami/zookeeper
+    environment:
+      TZ: Asia/Jakarta
+      ALLOW_ANONYMOUS_LOGIN: yes
+  lighter-kafka:
+    container_name: lighter-kafka
+    image: bitnami/kafka 
+    environment:
+      TZ: Asia/Jakarta
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@0.0.0.0:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+    depends_on:
+      - lighter-zookeeper
+  lighter-postgres:
+    container_name: lighter-postgres 
+    image: postgres 
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_MULTIPLE_DATABASES: auth,gateway,storage
+    volumes:
+      - ./databases.sh:/docker-entrypoint-initdb.d/databases.sh
+  lighter-auth:
+    container_name: lighter-auth
+    build:
+      dockerfile: ./Dockerfile
+      args:
+        CERT_PEM: $CERT_PEM
+        CERT_KEY: $CERT_KEY
+    links:
+      - lighter-postgres
+    depends_on:
+      - lighter-postgres
+    expose:
+      - 443
+    ports:
+      - 443:443
+    volumes:
+      - ./migration:/app/migration 
+      - ./src:/app/src 
+      - ./.env:/app/.env 
+      - ./Cargo.lock:/app/Cargo.lock
+      - ./Cargo.toml:/app/Cargo.toml

@@ -1,0 +1,41 @@
+[package]
+name = "lighter-auth"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+resolver = "2"
+members = [
+  "migration",
+]
+
+[features]
+default = ["postgres"]
+postgres = ["lighter-common/postgres", "lighter-auth-migration/postgres", "sea-orm/sqlx-postgres"]
+sqlite = ["lighter-common/sqlite", "lighter-auth-migration/sqlite", "sea-orm/sqlx-sqlite"]
+
+[dependencies]
+lighter-common = { workspace = true }
+lighter-auth-migration = { workspace = true }
+
+actix = { workspace = true }
+actix-cors = { workspace = true }
+actix-web = { workspace = true }
+sea-orm = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+[workspace.dependencies]
+lighter-auth-migration = { path = "migration" }
+lighter-common = { git = "https://github.com/Geriano/lighter-common" }
+
+actix = "0.13.1"
+actix-cors = "0.7.0"
+actix-web = { version = "4.4.1", features = ["rustls-0_21"] }
+sea-orm = { version = "0.12.12", features = ["runtime-tokio-native-tls"] }
+serde = { version = "1.0.196", features = ["derive"] }
+serde_json = "1.0.113"
+utoipa = { version = "4.2.0", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "6.0.0", features = ["actix-web"] }
