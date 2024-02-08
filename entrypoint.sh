@@ -1,4 +1,3 @@
-# sea migrate fresh
-# cargo watch -x "run --release"
-cargo run --release
+sea migrate up
+cargo watch -x "run --release"
 
