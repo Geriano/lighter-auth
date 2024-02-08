@@ -9,6 +9,10 @@ members = [
   "migration",
 ]
 
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"  # Optimize for size.
+
 [features]
 default = ["postgres"]
 postgres = ["lighter-common/postgres", "lighter-auth-migration/postgres", "sea-orm/sqlx-postgres"]
@@ -30,9 +34,10 @@ utoipa-swagger-ui = { workspace = true }
 [workspace.dependencies]
 lighter-auth-migration = { path = "migration" }
 lighter-common = { git = "https://github.com/Geriano/lighter-common" }
+# lighter-common = { path = "../common" }
 
 actix = "0.13.1"
-actix-cors = "0.7.0"
+actix-cors = "0.6.5"
 actix-web = { version = "4.4.1", features = ["rustls-0_21"] }
 sea-orm = { version = "0.12.12", features = ["runtime-tokio-native-tls"] }
 serde = { version = "1.0.196", features = ["derive"] }

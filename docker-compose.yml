@@ -6,6 +6,8 @@ services:
     environment:
       TZ: Asia/Jakarta
       ALLOW_ANONYMOUS_LOGIN: yes
+    networks:
+      - local
   lighter-kafka:
     container_name: lighter-kafka
     image: bitnami/kafka 
@@ -20,6 +22,8 @@ services:
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
     depends_on:
       - lighter-zookeeper
+    networks:
+      - local
   lighter-postgres:
     container_name: lighter-postgres 
     image: postgres 
@@ -29,24 +33,28 @@ services:
       POSTGRES_MULTIPLE_DATABASES: auth,gateway,storage
     volumes:
       - ./databases.sh:/docker-entrypoint-initdb.d/databases.sh
+    networks:
+      - local
   lighter-auth:
     container_name: lighter-auth
     build:
       dockerfile: ./Dockerfile
-      args:
-        CERT_PEM: $CERT_PEM
-        CERT_KEY: $CERT_KEY
-    links:
-      - lighter-postgres
     depends_on:
       - lighter-postgres
+    networks:
+      - local
     expose:
-      - 443
+      - 5678
     ports:
-      - 443:443
+      - 5678:5678
     volumes:
       - ./migration:/app/migration 
       - ./src:/app/src 
       - ./.env:/app/.env 
       - ./Cargo.lock:/app/Cargo.lock
       - ./Cargo.toml:/app/Cargo.toml
+
+networks:
+  local:
+    driver: bridge
+

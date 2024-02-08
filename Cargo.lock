@@ -60,21 +60,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix-cors"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9e772b3bcafe335042b5db010ab7c09013dad6eac4915c91d8d50902769f331"
-dependencies = [
- "actix-utils",
- "actix-web",
- "derive_more",
- "futures-util",
- "log",
- "once_cell",
- "smallvec",
-]
-
-[[package]]
 name = "actix-http"
 version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1726,7 +1711,7 @@ name = "lighter-auth"
 version = "0.1.0"
 dependencies = [
  "actix",
- "actix-cors 0.7.0",
+ "actix-cors",
  "actix-web",
  "lighter-auth-migration",
  "lighter-common",
@@ -1749,10 +1734,10 @@ dependencies = [
 [[package]]
 name = "lighter-common"
 version = "0.1.0"
-source = "git+https://github.com/Geriano/lighter-common#32488186e8b14f4625debee3701c0bba7a94c9cb"
+source = "git+https://github.com/Geriano/lighter-common#69d2363738a7192d3ac2ff126a5c17720cce4dc1"
 dependencies = [
  "actix",
- "actix-cors 0.6.5",
+ "actix-cors",
  "actix-web",
  "awc",
  "bs58",
@@ -1777,7 +1762,7 @@ dependencies = [
 [[package]]
 name = "lighter-common-derives"
 version = "0.1.0"
-source = "git+https://github.com/Geriano/lighter-common#32488186e8b14f4625debee3701c0bba7a94c9cb"
+source = "git+https://github.com/Geriano/lighter-common#69d2363738a7192d3ac2ff126a5c17720cce4dc1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1787,7 +1772,7 @@ dependencies = [
 [[package]]
 name = "lighter-common-macros"
 version = "0.1.0"
-source = "git+https://github.com/Geriano/lighter-common#32488186e8b14f4625debee3701c0bba7a94c9cb"
+source = "git+https://github.com/Geriano/lighter-common#69d2363738a7192d3ac2ff126a5c17720cce4dc1"
 
 [[package]]
 name = "linux-raw-sys"
