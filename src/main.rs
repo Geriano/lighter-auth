@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 #[macro_use]
 extern crate actix_web;
 
@@ -11,16 +13,15 @@ pub mod responses;
 pub mod router;
 pub mod services;
 
-use std::env;
 use std::io::Error;
 
-use lighter_common::{prelude::*, tls};
+use lighter_common::prelude::*;
 
 #[actix::main]
 async fn main() -> Result<(), Error> {
     tracing::init();
 
-    let mut server = Server::env().await;
+    let server = Server::env().await;
 
     server.run(router::route)?.await
 }
