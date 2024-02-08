@@ -1,9 +1,12 @@
 name: lighter
+version: '3.3'
 services:
   lighter-auth:
     container_name: lighter-auth
     build:
       dockerfile: ./Dockerfile
+      tags: 
+        - lighter-auth:latest
       args:
         DATABASE_URL: ${DATABASE_URL}
         PORT: ${PORT}
