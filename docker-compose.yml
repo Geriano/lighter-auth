@@ -1,24 +1,16 @@
 name: lighter
 version: '3.3'
 services:
-  lighter-auth:
-    container_name: lighter-auth
+  lighter-auth-release:
+    container_name: lighter-auth-release
     build:
       dockerfile: ./Dockerfile
       tags: 
-        - lighter-auth:latest
+        - lighter-auth:release
       args:
         DATABASE_URL: ${DATABASE_URL}
         PORT: ${PORT}
     expose:
-      - 5678
+      - 6789
     ports:
-      - 5678:5678
-    volumes:
-      - ./migration:/app/migration 
-      - ./src:/app/src 
-      - ./.env:/app/.env 
-      - ./Cargo.lock:/app/Cargo.lock
-      - ./Cargo.toml:/app/Cargo.toml
-
-
+      - 6789:6789
