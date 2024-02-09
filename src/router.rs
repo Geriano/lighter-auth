@@ -34,6 +34,7 @@ pub fn route(app: &mut ServiceConfig) {
     app.service(controllers::v1::auth::logout);
 
     // must at the end!
+    app.service(web::redirect("/doc", "/doc/"));
     app.service(SwaggerUi::new("/doc/{_:.*}").urls(vec![(
         Url::new("Authentication", "/api.json"),
         Definition::openapi(),
