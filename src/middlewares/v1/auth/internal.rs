@@ -63,7 +63,7 @@ impl FromRequest for Auth {
                 return Box::pin(async move {
                     tracing::error!("Failed to get authorization header");
 
-                    Err(InternalServerError::new("Missing authorization header").into())
+                    Err(BadRequest::new("Missing authorization header").into())
                 });
             }
         };
@@ -75,7 +75,7 @@ impl FromRequest for Auth {
                     tracing::error!("Failed to convert header to string");
                     tracing::error!("Error: {}", e);
 
-                    Err(InternalServerError::new("Failed to convert header to string").into())
+                    Err(BadRequest::new("Failed to convert header to string").into())
                 });
             }
         };
@@ -84,7 +84,7 @@ impl FromRequest for Auth {
             return Box::pin(async move {
                 tracing::error!("Invalid authorization header");
 
-                Err(InternalServerError::new("Invalid authorization header").into())
+                Err(BadRequest::new("Invalid authorization header").into())
             });
         }
 
@@ -96,7 +96,7 @@ impl FromRequest for Auth {
                     tracing::error!("Failed to decode token");
                     tracing::error!("Error: {}", e);
 
-                    Err(InternalServerError::new("Failed to decode token").into())
+                    Err(BadRequest::new("Failed to decode token").into())
                 });
             }
         };
@@ -108,7 +108,7 @@ impl FromRequest for Auth {
                     tracing::error!("Failed to convert token to uuid");
                     tracing::error!("Error: {}", e);
 
-                    Err(InternalServerError::new("Failed to convert token to uuid").into())
+                    Err(BadRequest::new("Failed to convert token to uuid").into())
                 });
             }
         };
@@ -132,7 +132,7 @@ impl FromRequest for Auth {
                 None => {
                     tracing::error!("Token not found");
 
-                    return Err(InternalServerError::new("Token not found").into());
+                    return Err(Unauthorized::new("Token not found").into());
                 }
             };
 
@@ -140,7 +140,7 @@ impl FromRequest for Auth {
                 if expired_at < now() {
                     tracing::error!("Token expired");
 
-                    return Err(InternalServerError::new("Token expired").into());
+                    return Err(Unauthorized::new("Token expired").into());
                 }
             }
 

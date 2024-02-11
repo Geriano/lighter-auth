@@ -4,3 +4,4 @@ migration/target
 id_rsa
 id_rsa.pub
 .env
+.DS_Store
