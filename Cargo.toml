@@ -25,6 +25,7 @@ lighter-auth-migration = { workspace = true }
 actix = { workspace = true }
 actix-cors = { workspace = true }
 actix-web = { workspace = true }
+awc = { workspace = true }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -39,6 +40,7 @@ lighter-common = { git = "https://github.com/Geriano/lighter-common" }
 actix = "0.13.1"
 actix-cors = "0.6.5"
 actix-web = { version = "4.4.1", features = ["rustls-0_21"] }
+awc = "3.4.0"
 sea-orm = { version = "0.12.12", features = ["runtime-tokio-native-tls"] }
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
