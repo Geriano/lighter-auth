@@ -1,6 +1,4 @@
-FROM rust:1.75.0-slim-bullseye as base
-
-FROM base as builder
+FROM rust:1.75.0-slim-bullseye as builder
 
 ARG DATABASE_URL
 ARG KAFKA_URL
@@ -15,12 +13,13 @@ ENV PORT=${PORT}
 ENV KAFKA_URL=${KAFKA_URL}
 ENV DATABASE_URL=${DATABASE_URL}
 
-RUN apt update && apt install -y libssl-dev pkg-config curl ca-certificates
+RUN apt update
+RUN apt install -y libssl-dev pkg-config
 RUN rustup component add rustfmt
 RUN cargo build --release
 RUN cargo test --release
 
-FROM base as runtime
+FROM debian:bullseye-slim as runtime
 
 ARG DATABASE_URL
 ARG KAFKA_URL
