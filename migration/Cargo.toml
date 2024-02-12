@@ -8,7 +8,7 @@ publish = false
 path = "src/lib.rs"
 
 [features]
-default = ["postgres"]
+default = []
 sqlite = ["lighter-common/sqlite"]
 postgres = ["lighter-common/postgres"]
 

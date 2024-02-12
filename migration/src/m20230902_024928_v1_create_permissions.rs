@@ -11,6 +11,7 @@ pub const TABLE: Permission = Permission::Table;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        #[cfg(any(feature = "postgres", feature = "sqlite"))]
         manager
             .create_table(
                 Table::create()
@@ -69,6 +70,7 @@ impl MigrationTrait for Migration {
 
 #[derive(DeriveIden)]
 pub enum Permission {
+    #[cfg(feature = "postgres")]
     #[sea_orm(iden = "v1")]
     Schema,
     #[sea_orm(iden = "permissions")]
