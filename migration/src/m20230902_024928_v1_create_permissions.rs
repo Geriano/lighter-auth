@@ -69,6 +69,7 @@ impl MigrationTrait for Migration {
 
 #[derive(DeriveIden)]
 pub enum Permission {
+    #[cfg(feature = "postgres")]
     #[sea_orm(iden = "v1")]
     Schema,
     #[sea_orm(iden = "permissions")]

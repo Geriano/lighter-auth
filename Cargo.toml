@@ -14,7 +14,7 @@ strip = true  # Automatically strip symbols from the binary.
 opt-level = "z"  # Optimize for size.
 
 [features]
-default = ["postgres"]
+default = []
 postgres = ["lighter-common/postgres", "lighter-auth-migration/postgres", "sea-orm/sqlx-postgres"]
 sqlite = ["lighter-common/sqlite", "lighter-auth-migration/sqlite", "sea-orm/sqlx-sqlite"]
 

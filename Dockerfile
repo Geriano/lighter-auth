@@ -1,8 +1,9 @@
-FROM rust:1.75.0-slim-bullseye as builder
+FROM rust:1.75.0-bullseye as builder
 
 ARG DATABASE_URL
 ARG KAFKA_URL
 ARG PORT
+ARG CARGO_FLAGS
 
 WORKDIR /app 
 
@@ -16,8 +17,8 @@ ENV DATABASE_URL=${DATABASE_URL}
 RUN apt update
 RUN apt install -y libssl-dev pkg-config
 RUN rustup component add rustfmt
-RUN cargo build --release
-RUN cargo test --release
+RUN cargo build --release ${CARGO_FLAGS}
+RUN cargo test --release ${CARGO_FLAGS}
 
 FROM debian:bullseye-slim as runtime
 

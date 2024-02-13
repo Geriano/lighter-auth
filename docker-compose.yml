@@ -8,8 +8,9 @@ services:
       tags: 
         - lighter-auth:release
       args:
+        CARGO_FLAGS: ${CARGO_FLAGS}
         DATABASE_URL: ${DATABASE_URL}
-        PORT: ${PORT}
+        PORT: 6789
     expose:
       - 6789
     ports:

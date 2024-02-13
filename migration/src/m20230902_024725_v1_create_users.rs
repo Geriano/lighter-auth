@@ -153,6 +153,7 @@ impl MigrationTrait for Migration {
 
 #[derive(DeriveIden)]
 pub enum User {
+    #[cfg(feature = "postgres")]
     #[sea_orm(iden = "v1")]
     Schema,
     #[sea_orm(iden = "users")]

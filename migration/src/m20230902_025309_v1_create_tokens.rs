@@ -78,6 +78,7 @@ impl MigrationTrait for Migration {
 
 #[derive(DeriveIden)]
 enum Token {
+    #[cfg(feature = "postgres")]
     #[sea_orm(iden = "v1")]
     Schema,
     #[sea_orm(iden = "tokens")]
