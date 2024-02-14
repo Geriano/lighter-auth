@@ -3,7 +3,8 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(schema_name = "v1", table_name = "permission_role")]
+#[cfg_attr(feature = "postgres", sea_orm(schema_name = "v1"))]
+#[sea_orm(table_name = "permission_role")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,

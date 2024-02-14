@@ -47,3 +47,15 @@ where
         }
     }
 }
+
+impl Into<User> for UserWithPermissionAndRole {
+    fn into(self) -> User {
+        User {
+            id: self.id,
+            name: self.name,
+            email: self.email,
+            email_verified_at: self.email_verified_at,
+            username: self.username,
+        }
+    }
+}

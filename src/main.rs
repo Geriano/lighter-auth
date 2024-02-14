@@ -13,6 +13,8 @@ pub mod responses;
 pub mod router;
 pub mod services;
 
+pub mod testing;
+
 use std::io::Error;
 
 use lighter_common::prelude::*;
