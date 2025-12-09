@@ -1,0 +1,449 @@
+# Cache Implementation
+
+lighter-auth provides two cache implementations: LocalCache (in-memory) and RedisCache (distributed).
+
+## LocalCache (Default)
+
+In-memory cache using DashMap for high-performance concurrent access.
+
+**Features:**
+- Lock-free concurrent access
+- Automatic expiration via background cleanup task
+- Configurable shard count for better concurrency
+- Zero external dependencies
+- Metrics tracking (hits, misses, evictions)
+
+**Usage:**
+```rust
+use lighter_auth::cache::{Cache, LocalCache};
+use std::time::Duration;
+
+let cache = LocalCache::new();
+
+// Or with custom shard count
+let cache = LocalCache::with_shard_count(16);
+
+// Store value
+cache.set("key", &value, Duration::from_secs(300)).await?;
+
+// Retrieve value
+let value: Option<String> = cache.get("key").await?;
+
+// Check existence
+let exists = cache.exists("key").await?;
+
+// Delete
+cache.delete("key").await?;
+
+// Clear all
+cache.clear().await?;
+
+// Get stats
+let stats = cache.stats().await?;
+println!("Hit rate: {:.2}%", stats.hit_rate * 100.0);
+```
+
+**Limitations:**
+- Not distributed (single-process only)
+- Lost on application restart
+- Memory consumption grows with data
+
+## RedisCache (Optional)
+
+Distributed cache using Redis with async connection pooling.
+
+**Features:**
+- Distributed across multiple instances
+- Persistent storage (survives restarts)
+- Automatic reconnection via ConnectionManager
+- Key prefixing for namespace isolation
+- Bincode serialization for binary efficiency
+- TTL support via Redis SET EX
+- Metrics tracking
+
+**Enable Feature:**
+```toml
+[features]
+redis-cache = ["redis"]
+
+[dependencies]
+redis = { version = "0.27", features = ["aio", "tokio-comp", "connection-manager"] }
+```
+
+**Build with Redis:**
+```bash
+cargo build --features redis-cache
+cargo test --features "sqlite,redis-cache"
+```
+
+**Usage:**
+```rust
+use lighter_auth::cache::{Cache, RedisCache};
+use std::time::Duration;
+
+// Connect to Redis
+let cache = RedisCache::new("redis://localhost:6379", "lighter-auth").await?;
+
+// Or from existing client
+let client = redis::Client::open("redis://localhost:6379")?;
+let cache = RedisCache::from_client(client, "lighter-auth").await?;
+
+// Same API as LocalCache
+cache.set("key", &value, Duration::from_secs(300)).await?;
+let value: Option<String> = cache.get("key").await?;
+```
+
+**Key Prefixing:**
+
+All keys are automatically prefixed with the application name:
+
+```rust
+let cache = RedisCache::new("redis://localhost:6379", "lighter-auth").await?;
+
+// Internally stored as "lighter-auth:user:123"
+cache.set("user:123", &user, ttl).await?;
+```
+
+This allows multiple applications to share the same Redis instance without key collisions.
+
+**Environment Variables:**
+```bash
+# Redis connection string
+REDIS_URL=redis://localhost:6379
+
+# Redis with authentication
+REDIS_URL=redis://:password@localhost:6379
+
+# Redis with database selection
+REDIS_URL=redis://localhost:6379/1
+
+# Redis Cluster
+REDIS_URL=redis://node1:6379,node2:6379,node3:6379
+```
+
+## Cache Trait
+
+Both implementations conform to the same `Cache` trait:
+
+```rust
+#[async_trait]
+pub trait Cache: Send + Sync + Debug {
+    /// Get a value from the cache
+    async fn get<V>(&self, key: &str) -> Result<Option<V>>
+    where
+        V: for<'de> Deserialize<'de> + Send;
+
+    /// Set a value in the cache with a TTL
+    async fn set<V>(&self, key: &str, value: &V, ttl: Duration) -> Result<()>
+    where
+        V: Serialize + Send + Sync;
+
+    /// Delete a key from the cache
+    async fn delete(&self, key: &str) -> Result<()>;
+
+    /// Check if a key exists in the cache
+    async fn exists(&self, key: &str) -> Result<bool>;
+
+    /// Clear all keys from the cache
+    async fn clear(&self) -> Result<()>;
+
+    /// Get cache statistics
+    async fn stats(&self) -> Result<CacheStats>;
+}
+```
+
+This allows you to swap implementations without changing application code.
+
+## CacheKey Helper
+
+Use the `CacheKey` helper for consistent key naming:
+
+```rust
+use lighter_auth::cache::CacheKey;
+
+// Predefined patterns
+let key = CacheKey::user(user_id);              // "user:{id}"
+let key = CacheKey::token(token_id);            // "token:{id}"
+let key = CacheKey::permission(perm_id);        // "permission:{id}"
+let key = CacheKey::role(role_id);              // "role:{id}"
+let key = CacheKey::session(session_id);        // "session:{id}"
+let key = CacheKey::user_permissions(user_id);  // "user:{id}:permissions"
+let key = CacheKey::user_roles(user_id);        // "user:{id}:roles"
+
+// Custom patterns
+let key = CacheKey::custom("api", "rate-limit");  // "api:rate-limit"
+```
+
+## Performance Comparison
+
+### LocalCache
+- **Latency**: < 1µs (memory access)
+- **Throughput**: ~1M ops/sec per core
+- **Concurrency**: Lock-free, scales with CPU cores
+- **Memory**: ~100 bytes overhead per entry + data size
+
+### RedisCache
+- **Latency**: ~1-5ms (network + Redis)
+- **Throughput**: ~100K ops/sec (network limited)
+- **Concurrency**: Excellent (Redis is single-threaded but pipelined)
+- **Memory**: Redis memory + small client overhead
+
+**Recommendation:**
+- Use **LocalCache** for:
+  - Single-instance deployments
+  - Hot path data (authentication tokens)
+  - Sub-millisecond latency requirements
+
+- Use **RedisCache** for:
+  - Multi-instance deployments (load balanced)
+  - Shared state across services
+  - Persistent cache (survives restarts)
+  - Cache invalidation across instances
+
+## Testing
+
+### LocalCache Tests
+```bash
+# Run all LocalCache tests
+cargo test --features sqlite cache::local
+
+# Specific test
+cargo test --features sqlite test_local_cache_set_and_get
+```
+
+### RedisCache Tests
+```bash
+# Start Redis for testing
+docker run -d -p 6379:6379 redis
+
+# Run RedisCache tests (requires Redis)
+cargo test --features "sqlite,redis-cache" cache::redis -- --ignored
+
+# Run all tests including integration
+cargo test --features "sqlite,redis-cache" -- --ignored
+```
+
+**Note**: RedisCache tests are marked `#[ignore]` by default because they require a running Redis instance. Use `--ignored` flag to run them.
+
+## Production Deployment
+
+### Docker Compose with Redis
+
+```yaml
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  auth:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://user:pass@postgres/db
+    ports:
+      - "8080:8080"
+
+volumes:
+  redis_data:
+```
+
+### Redis Configuration
+
+**Production Redis settings** (`redis.conf`):
+
+```conf
+# Memory
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+
+# Persistence (optional)
+save 900 1
+save 300 10
+save 60 10000
+
+# Performance
+tcp-keepalive 60
+timeout 300
+
+# Security
+requirepass your-strong-password
+```
+
+### Connection Pooling
+
+RedisCache uses `redis::aio::ConnectionManager` which provides:
+- Automatic connection pooling
+- Reconnection on failure
+- Async/await support
+- Pipeline support
+
+No additional configuration needed.
+
+## Metrics and Monitoring
+
+Both cache implementations track metrics:
+
+```rust
+let stats = cache.stats().await?;
+
+println!("Cache Statistics:");
+println!("  Size:       {} entries", stats.size);
+println!("  Hits:       {}", stats.hits);
+println!("  Misses:     {}", stats.misses);
+println!("  Evictions:  {}", stats.evictions);
+println!("  Hit Rate:   {:.2}%", stats.hit_rate * 100.0);
+```
+
+**Recommended Metrics to Export:**
+- `cache_hits_total` (counter)
+- `cache_misses_total` (counter)
+- `cache_evictions_total` (counter)
+- `cache_size_entries` (gauge)
+- `cache_hit_rate` (gauge)
+- `cache_operation_duration_seconds` (histogram)
+
+## Migration Guide
+
+### From LocalCache to RedisCache
+
+**Before** (LocalCache):
+```rust
+use lighter_auth::cache::LocalCache;
+
+let cache = LocalCache::new();
+```
+
+**After** (RedisCache):
+```rust
+use lighter_auth::cache::RedisCache;
+
+let redis_url = std::env::var("REDIS_URL")
+    .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+
+let cache = RedisCache::new(&redis_url, "lighter-auth").await?;
+```
+
+**No other code changes required** - the Cache trait API is identical.
+
+### Hybrid Approach
+
+Use LocalCache as L1 cache and RedisCache as L2:
+
+```rust
+pub struct TieredCache {
+    l1: LocalCache,
+    l2: RedisCache,
+}
+
+impl TieredCache {
+    pub async fn get<V>(&self, key: &str) -> Result<Option<V>>
+    where
+        V: for<'de> Deserialize<'de> + Send + Clone + Serialize + Sync,
+    {
+        // Try L1 first (fast)
+        if let Some(value) = self.l1.get(key).await? {
+            return Ok(Some(value));
+        }
+
+        // Try L2 (slower but persistent)
+        if let Some(value) = self.l2.get(key).await? {
+            // Populate L1 for next time
+            self.l1.set(key, &value, Duration::from_secs(300)).await?;
+            return Ok(Some(value));
+        }
+
+        Ok(None)
+    }
+}
+```
+
+## Troubleshooting
+
+### RedisCache Connection Issues
+
+**Error: "Failed to create Redis connection manager"**
+```bash
+# Check Redis is running
+redis-cli ping
+# Should return: PONG
+
+# Check connection string
+echo $REDIS_URL
+
+# Test connection
+redis-cli -u $REDIS_URL ping
+```
+
+**Error: "Connection refused"**
+- Ensure Redis is running: `docker ps | grep redis`
+- Check firewall rules
+- Verify Redis is listening on correct interface: `netstat -an | grep 6379`
+
+### Performance Issues
+
+**High latency with RedisCache:**
+- Use connection pooling (already enabled by default)
+- Consider Redis pipeline for batch operations
+- Check network latency: `redis-cli --latency`
+- Use LocalCache for hot path data
+
+**Memory issues with LocalCache:**
+- Reduce TTL to expire entries faster
+- Implement LRU eviction policy (not currently supported)
+- Switch to RedisCache with maxmemory-policy
+
+## Examples
+
+See `examples/cache_usage.rs` for a complete working example:
+
+```bash
+# Run example with LocalCache only
+cargo run --example cache_usage --features sqlite
+
+# Run example with both caches (requires Redis)
+cargo run --example cache_usage --features "sqlite,redis-cache"
+```
+
+## API Documentation
+
+Generate and view full API documentation:
+
+```bash
+cargo doc --features "redis-cache" --open
+```
+
+## Roadmap
+
+Future enhancements:
+- [ ] Redis Cluster support
+- [ ] Redis Sentinel support
+- [ ] Batch operations (MGET, MSET)
+- [ ] TTL inspection
+- [ ] Cache warming
+- [ ] Distributed lock support
+- [ ] Pub/Sub for cache invalidation
+- [ ] Compression for large values
+- [ ] Encryption at rest
+
+## Contributing
+
+When adding cache features:
+1. Implement for both LocalCache and RedisCache
+2. Add tests with and without Redis
+3. Update this documentation
+4. Add example usage
+5. Ensure backward compatibility

@@ -1,6 +1,12 @@
 pub mod local;
 
+#[cfg(feature = "redis-cache")]
+pub mod redis;
+
 pub use local::LocalCache;
+
+#[cfg(feature = "redis-cache")]
+pub use redis::RedisCache;
 
 use async_trait::async_trait;
 use anyhow::Result;

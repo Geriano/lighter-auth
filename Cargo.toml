@@ -93,7 +93,7 @@ governor = "0.6"
 tower = "0.4"
 
 # Distributed caching
-redis = "0.24"
+redis = { version = "0.27", features = ["aio", "tokio-comp", "connection-manager"] }
 
 # Error handling
 anyhow = "1.0"
