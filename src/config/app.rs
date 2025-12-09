@@ -245,12 +245,45 @@ mod tests {
     }
 
     #[test]
+    async fn test_app_metadata_validation_empty_version() {
+        let metadata = AppMetadata {
+            version: "".to_string(),
+            ..AppMetadata::default()
+        };
+        assert!(metadata.validate().is_err());
+    }
+
+    #[test]
+    async fn test_app_metadata_validation_empty_environment() {
+        let metadata = AppMetadata {
+            environment: "".to_string(),
+            ..AppMetadata::default()
+        };
+        assert!(metadata.validate().is_err());
+    }
+
+    #[test]
     async fn test_app_metadata_validation_zero_shutdown_timeout() {
         let metadata = AppMetadata {
             shutdown_timeout: 0,
             ..AppMetadata::default()
         };
         assert!(metadata.validate().is_err());
+    }
+
+    #[test]
+    async fn test_app_metadata_validation_valid() {
+        let metadata = AppMetadata::default();
+        assert!(metadata.validate().is_ok());
+    }
+
+    #[test]
+    async fn test_api_config_validation_empty_version() {
+        let config = ApiConfig {
+            version: "".to_string(),
+            ..ApiConfig::default()
+        };
+        assert!(config.validate().is_err());
     }
 
     #[test]
@@ -261,5 +294,40 @@ mod tests {
             ..ApiConfig::default()
         };
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    async fn test_api_config_validation_swagger_disabled_empty_path() {
+        let config = ApiConfig {
+            swagger_enabled: false,
+            swagger_path: "".to_string(),
+            ..ApiConfig::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    async fn test_api_config_validation_valid() {
+        let config = ApiConfig::default();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    async fn test_app_config_validation_valid_defaults() {
+        let config = AppConfig::with_defaults();
+        // With defaults, all required fields are set with valid values
+        let result = config.validate();
+        // Should pass with valid defaults
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    async fn test_app_config_validation_invalid_nested_config() {
+        let mut config = AppConfig::with_defaults();
+        // Make the database URL invalid
+        config.database.url = "".to_string();
+        let result = config.validate();
+        // Should fail on empty database URL
+        assert!(result.is_err());
     }
 }
