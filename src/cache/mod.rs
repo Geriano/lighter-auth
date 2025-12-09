@@ -4,6 +4,7 @@ pub mod local;
 pub mod redis;
 
 pub mod hybrid;
+pub mod null;
 
 pub use local::LocalCache;
 
@@ -11,6 +12,7 @@ pub use local::LocalCache;
 pub use redis::RedisCache;
 
 pub use hybrid::HybridCache;
+pub use null::NullCache;
 
 use async_trait::async_trait;
 use anyhow::Result;
