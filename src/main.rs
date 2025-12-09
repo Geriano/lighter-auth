@@ -34,7 +34,7 @@ use lighter_common::database as common_database;
 use database::DatabasePool;
 use security::SecurityHeadersMiddleware;
 
-#[actix::main]
+#[actix_web::main]
 async fn main() -> Result<(), Error> {
     // Load and validate configuration
     let app_config = config::load().expect("Failed to load configuration");
@@ -74,12 +74,14 @@ async fn main() -> Result<(), Error> {
 
     let max_payload = app_config.server.max_payload_size;
     let workers = app_config.server.workers;
+    let shutdown_timeout = app_config.app.shutdown_timeout;
     let security_headers_config = app_config.security.headers.clone();
 
     ::tracing::info!(
         host = %app_config.server.host,
         port = %app_config.server.port,
         workers = %workers,
+        shutdown_timeout = %shutdown_timeout,
         security_headers_enabled = %security_headers_config.enabled,
         "Configuring HTTP server"
     );
@@ -107,11 +109,83 @@ async fn main() -> Result<(), Error> {
         http_server = http_server.workers(workers);
     }
 
+    // Configure graceful shutdown timeout
+    http_server = http_server.shutdown_timeout(shutdown_timeout);
+
     ::tracing::info!(
         address = %addr,
         "Server listening and ready to accept connections"
     );
 
-    // Run server
-    http_server.bind(addr)?.run().await
+    // Bind and create server
+    let server = http_server.bind(addr)?.run();
+
+    // Get server handle for graceful shutdown
+    let server_handle = server.handle();
+
+    // Spawn shutdown signal handler
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        ::tracing::info!(
+            shutdown_timeout_seconds = shutdown_timeout,
+            "Received shutdown signal, initiating graceful shutdown and draining in-flight requests"
+        );
+        // Trigger graceful shutdown (graceful=true means wait for in-flight requests)
+        server_handle.stop(true).await;
+    });
+
+    // Run server (this blocks until shutdown signal)
+    let result = server.await;
+
+    // Log shutdown completion
+    match result {
+        Ok(_) => {
+            ::tracing::info!("Graceful shutdown completed successfully");
+            Ok(())
+        }
+        Err(e) => {
+            ::tracing::error!(error = %e, "Server shutdown with error");
+            Err(e)
+        }
+    }
+}
+
+/// Wait for shutdown signal (SIGTERM or Ctrl+C)
+///
+/// This function listens for:
+/// - SIGTERM: Typical termination signal from Docker/Kubernetes/systemd
+/// - SIGINT: Ctrl+C in development/terminal
+///
+/// The function returns when either signal is received, triggering graceful shutdown.
+#[allow(dead_code)]
+async fn shutdown_signal() {
+    use tokio::signal;
+
+    // Handle Ctrl+C (SIGINT)
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+        ::tracing::debug!("Received SIGINT (Ctrl+C)");
+    };
+
+    // Handle SIGTERM (Unix-only)
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+        ::tracing::debug!("Received SIGTERM");
+    };
+
+    // On non-Unix platforms (Windows), only handle Ctrl+C
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    // Wait for either signal
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

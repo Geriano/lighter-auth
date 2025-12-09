@@ -14,7 +14,8 @@ lighter-auth is a production-ready Rust authentication microservice built with a
 - Versioned API structure (v1) for future extensibility
 - OpenAPI documentation with Swagger UI
 - PostgreSQL primary database with SQLite support for testing
-- Docker deployment ready
+- Graceful shutdown with connection draining (SIGTERM/SIGINT)
+- Docker and Kubernetes deployment ready
 
 **Use Cases:**
 - Microservices authentication backend
@@ -1083,7 +1084,344 @@ impl Foo {
 
 ---
 
-## 10. Configuration
+## 10. Graceful Shutdown
+
+The lighter-auth service implements comprehensive graceful shutdown functionality that ensures in-flight requests complete successfully before the application terminates. This is critical for production deployments in Docker, Kubernetes, and systemd environments.
+
+### Implementation Overview
+
+**Key Features:**
+- Handles SIGTERM (Docker/Kubernetes/systemd)
+- Handles SIGINT (Ctrl+C for local development)
+- Configurable shutdown timeout via `app.shutdown_timeout` (default: 30 seconds)
+- Drains in-flight requests before termination
+- Structured logging for observability
+- Graceful database connection cleanup
+- Clean exit with proper status codes
+
+### Configuration
+
+The shutdown timeout is configurable through the application configuration:
+
+```toml
+# config/default.toml
+[app]
+shutdown_timeout = 30  # seconds
+```
+
+Or via environment variable:
+```bash
+LIGHTER_AUTH__APP__SHUTDOWN_TIMEOUT=45
+```
+
+**Important:** The shutdown timeout should be:
+- Shorter than Kubernetes' `terminationGracePeriodSeconds` (default: 30s)
+- Longer than your longest expected request duration
+- Typically 10-60 seconds for most applications
+
+### Shutdown Sequence
+
+When a shutdown signal is received, the following sequence occurs:
+
+1. **Signal Detection** - SIGTERM or SIGINT received by signal handler
+2. **Log Initiation** - Log "Received shutdown signal, initiating graceful shutdown"
+3. **Stop Accepting Connections** - Server stops accepting new connections
+4. **Drain In-Flight Requests** - Wait for active requests to complete (up to `shutdown_timeout`)
+5. **Resource Cleanup** - Database connections are closed (Arc/Drop handles this automatically)
+6. **Log Completion** - Log "Graceful shutdown completed successfully"
+7. **Exit** - Process exits with code 0
+
+**Timeline Example (30s timeout):**
+```
+t=0s    → Signal received, stop accepting new connections
+t=0-30s → Wait for in-flight requests to complete
+t=30s   → Timeout reached, force shutdown if needed
+t=30s   → Log completion and exit
+```
+
+### Signal Handling
+
+**SIGTERM (Production):**
+```bash
+# Docker stop
+docker stop lighter-auth
+
+# Kubernetes pod deletion
+kubectl delete pod lighter-auth-xyz
+
+# Systemd service stop
+systemctl stop lighter-auth
+
+# Manual kill
+kill -TERM <pid>
+```
+
+**SIGINT (Development):**
+```bash
+# Press Ctrl+C in terminal
+# Or use kill command
+kill -INT <pid>
+```
+
+### Implementation Details
+
+**File:** `src/main.rs`
+
+```rust
+#[actix_web::main]
+async fn main() -> Result<(), Error> {
+    // ... initialization code ...
+
+    // Configure shutdown timeout from config
+    http_server = http_server.shutdown_timeout(shutdown_timeout);
+
+    let server = http_server.bind(addr)?.run();
+    let server_handle = server.handle();
+
+    // Spawn shutdown signal handler
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        tracing::info!(
+            shutdown_timeout_seconds = shutdown_timeout,
+            "Received shutdown signal, initiating graceful shutdown"
+        );
+        server_handle.stop(true).await;  // graceful=true
+    });
+
+    let result = server.await;
+
+    match result {
+        Ok(_) => {
+            tracing::info!("Graceful shutdown completed successfully");
+            Ok(())
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Server shutdown with error");
+            Err(e)
+        }
+    }
+}
+
+async fn shutdown_signal() {
+    use tokio::signal;
+
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+        tracing::debug!("Received SIGINT (Ctrl+C)");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+        tracing::debug!("Received SIGTERM");
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+}
+```
+
+### Logging Output
+
+**Successful Shutdown:**
+```
+INFO lighter_auth: Received shutdown signal, initiating graceful shutdown and draining in-flight requests shutdown_timeout_seconds=30
+INFO lighter_auth: Graceful shutdown completed successfully
+```
+
+**Shutdown with Timeout Warning:**
+If requests take longer than the configured timeout, actix-web will force shutdown after the timeout period. Monitor your logs for slow requests.
+
+### Testing Graceful Shutdown
+
+**Manual Test (Ctrl+C):**
+```bash
+# Terminal 1: Start server
+cargo run
+
+# Terminal 1: Press Ctrl+C
+# Observe logs showing graceful shutdown
+
+# Check exit code
+echo $?  # Should be 0
+```
+
+**Manual Test (SIGTERM):**
+```bash
+# Terminal 1: Start server
+cargo run &
+PID=$!
+
+# Terminal 2: Send SIGTERM
+kill -TERM $PID
+
+# Observe logs showing graceful shutdown
+wait $PID
+echo $?  # Should be 0
+```
+
+**Automated Test:**
+```bash
+# Use provided test script
+./test_shutdown.sh
+```
+
+The test script (`test_shutdown.sh`) automatically tests both SIGINT and SIGTERM scenarios.
+
+### Docker Deployment
+
+When deploying with Docker, ensure your Dockerfile properly handles signals:
+
+```dockerfile
+FROM debian:bookworm-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y libssl-dev ca-certificates
+
+# Copy binary
+COPY --from=builder /app/target/release/lighter-auth /usr/local/bin/
+
+# Important: Use exec form to ensure signals are properly received
+CMD ["lighter-auth"]
+# NOT: CMD lighter-auth (shell form doesn't forward signals)
+```
+
+**Docker Compose:**
+```yaml
+services:
+  auth:
+    image: lighter-auth:latest
+    # Set stop grace period higher than shutdown_timeout
+    stop_grace_period: 35s
+    environment:
+      LIGHTER_AUTH__APP__SHUTDOWN_TIMEOUT: 30
+```
+
+### Kubernetes Deployment
+
+Configure appropriate termination grace period:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lighter-auth
+spec:
+  template:
+    spec:
+      # Must be > shutdown_timeout to allow graceful shutdown
+      terminationGracePeriodSeconds: 35
+      containers:
+      - name: auth
+        image: lighter-auth:latest
+        env:
+        - name: LIGHTER_AUTH__APP__SHUTDOWN_TIMEOUT
+          value: "30"
+```
+
+**Kubernetes Shutdown Flow:**
+1. Pod receives SIGTERM
+2. Application begins graceful shutdown (30s timeout)
+3. Kubernetes waits up to `terminationGracePeriodSeconds` (35s)
+4. If still running after 35s, Kubernetes sends SIGKILL (force kill)
+
+**Best Practice:** Set `terminationGracePeriodSeconds` to `shutdown_timeout + 5s` buffer.
+
+### Resource Cleanup
+
+**Automatic Cleanup:**
+- **Database Connections:** Wrapped in `Arc<DatabaseConnection>`, automatically cleaned up when Arc count reaches 0
+- **Circuit Breaker:** Gracefully stops tracking failures
+- **File Descriptors:** Closed by OS on process exit
+- **Network Sockets:** actix-web closes all sockets
+
+**No Manual Cleanup Required:**
+The implementation relies on Rust's ownership system (RAII - Resource Acquisition Is Initialization) for automatic cleanup. When the server shuts down:
+1. The `DatabasePool` Arc is dropped
+2. The underlying `DatabaseConnection` is closed
+3. All other resources are automatically freed
+
+### Metrics and Monitoring
+
+Monitor these metrics to ensure graceful shutdown is working:
+
+**Key Metrics:**
+- `shutdown_duration_seconds` - Time taken to shut down
+- `requests_in_flight_at_shutdown` - Number of requests being processed when shutdown started
+- `forced_shutdown_count` - Number of times timeout was reached
+
+**Logs to Watch:**
+```bash
+# Filter shutdown-related logs
+kubectl logs -f pod/lighter-auth-xyz | grep -i "shutdown"
+
+# Expected output on clean shutdown:
+# INFO: Received shutdown signal, initiating graceful shutdown...
+# INFO: Graceful shutdown completed successfully
+```
+
+**Alerting Recommendations:**
+- Alert if shutdown takes > 80% of configured timeout (indicates slow requests)
+- Alert if forced shutdowns occur (timeout reached)
+- Monitor for error logs during shutdown
+
+### Troubleshooting
+
+**Problem: Application doesn't shut down gracefully**
+
+**Solution:**
+1. Check if using exec form in CMD (not shell form)
+2. Verify signal handlers are installed (check startup logs)
+3. Ensure shutdown_timeout is configured correctly
+4. Check for blocking operations in request handlers
+
+**Problem: Requests fail during deployment**
+
+**Solution:**
+1. Increase `shutdown_timeout` if requests are slow
+2. Implement retry logic in clients
+3. Use rolling deployments with readiness/liveness probes
+4. Ensure load balancer health checks are properly configured
+
+**Problem: Database connection errors during shutdown**
+
+**Solution:**
+1. Ensure database operations complete within shutdown timeout
+2. Implement timeouts on database queries
+3. Use connection pooling with proper timeout settings
+4. Monitor connection pool metrics
+
+### Production Checklist
+
+- [ ] Shutdown timeout configured appropriately (10-60s)
+- [ ] Docker CMD uses exec form: `CMD ["app"]`
+- [ ] Kubernetes `terminationGracePeriodSeconds` > `shutdown_timeout`
+- [ ] Docker `stop_grace_period` > `shutdown_timeout`
+- [ ] Monitoring alerts for shutdown duration
+- [ ] Load balancer health checks configured
+- [ ] Client retry logic implemented
+- [ ] Tested with `test_shutdown.sh` script
+
+### Related Configuration
+
+See also:
+- Section 11: Configuration (shutdown_timeout setting)
+- Section 13: Deployment (Docker/Kubernetes setup)
+- Section 16: Security Considerations (signal handling security)
+
+---
+
+## 11. Configuration
 
 ### Environment Variables
 
