@@ -1,5 +1,6 @@
 use lighter_common::prelude::*;
 
+use crate::helpers::AnyhowResponder;
 use crate::middlewares::v1::auth::Authenticated as Cache;
 use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::auth::LoginRequest;
@@ -27,7 +28,7 @@ pub async fn login(
     cached: Data<Cache>,
     Json(request): Json<LoginRequest>,
 ) -> impl Responder {
-    services::v1::auth::login::login(&db, &cached, request).await
+    AnyhowResponder(services::v1::auth::login::login(&db, &cached, request).await)
 }
 
 /// Get current session
@@ -46,7 +47,7 @@ pub async fn login(
 )]
 #[get("/user")]
 pub async fn authenticated(auth: Auth) -> impl Responder {
-    services::v1::auth::authenticated::authenticated(auth).await
+    AnyhowResponder(services::v1::auth::authenticated::authenticated(auth).await)
 }
 
 /// Destroy current session
@@ -69,5 +70,5 @@ pub async fn logout(
     db: Data<DatabaseConnection>,
     cached: Data<Cache>,
 ) -> impl Responder {
-    services::v1::auth::logout::logout(auth, &db, &cached).await
+    AnyhowResponder(services::v1::auth::logout::logout(auth, &db, &cached).await)
 }

@@ -31,7 +31,8 @@ pub async fn token(db: &DatabaseConnection) -> String {
 }
 
 pub async fn database() -> Result<DatabaseConnection, DbErr> {
-    let db = database::env().await?;
+    // Use in-memory SQLite database for testing
+    let db = database::memory().await?;
 
     lighter_auth_migration::Migrator::up(&db, None).await?;
 

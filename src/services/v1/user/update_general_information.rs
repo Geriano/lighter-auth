@@ -1,3 +1,4 @@
+use anyhow::Context;
 use lighter_common::prelude::*;
 use sea_orm::ColumnTrait;
 use sea_orm::prelude::*;
@@ -6,11 +7,12 @@ use crate::entities::v1::users::Model;
 use crate::entities::v1::{permissions, roles};
 use crate::requests::v1::user::UserUpdateGeneralInformationRequest;
 
+#[::tracing::instrument(skip(db, request), fields(user_id = %id, email = %request.email, username = %request.username))]
 pub async fn update(
     db: &DatabaseConnection,
     id: Uuid,
     request: UserUpdateGeneralInformationRequest,
-) -> Result<Success, Error> {
+) -> anyhow::Result<Success> {
     let mut validation = Validation::new();
     let name = request.name.trim().to_lowercase();
     let email = request.email.trim().to_lowercase();
@@ -19,11 +21,13 @@ pub async fn update(
     let permissions = permissions::Entity::find()
         .filter(permissions::Column::Id.is_in(request.permissions.clone()))
         .all(db)
-        .await?;
+        .await
+        .context("Failed to query permissions from database")?;
     let roles = roles::Entity::find()
         .filter(roles::Column::Id.is_in(request.roles.clone()))
         .all(db)
-        .await?;
+        .await
+        .context("Failed to query roles from database")?;
 
     if name.is_empty() {
         validation.add("name", "Name is required.");
@@ -60,13 +64,12 @@ pub async fn update(
     }
 
     if !validation.is_empty() {
-        return Err(validation.into());
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
-    let user = match Model::find_by_id(db, id).await {
-        None => return Err(NotFound::new("User not found.").into()),
-        Some(user) => user,
-    };
+    let user = Model::find_by_id(db, id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
     user.update_general_information(
         db,
@@ -78,7 +81,8 @@ pub async fn update(
         permissions,
         roles,
     )
-    .await?;
+    .await
+    .context("Failed to update user general information in database")?;
 
     Ok(Success)
 }

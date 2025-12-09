@@ -1,13 +1,15 @@
+use anyhow::Context;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::permissions::Model;
 use crate::requests::v1::permission::PermissionRequest;
 use crate::responses::v1::permission::Permission;
 
+#[::tracing::instrument(skip(db, request), fields(name = %request.name))]
 pub async fn store(
     db: &DatabaseConnection,
     request: PermissionRequest,
-) -> Result<Permission, Error> {
+) -> anyhow::Result<Permission> {
     let mut validation = Validation::new();
     let name = request.name.trim().to_lowercase();
     let code = name.replace(" ", "_").to_uppercase();
@@ -19,7 +21,7 @@ pub async fn store(
     }
 
     if !validation.is_empty() {
-        return Err(validation.into());
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
     let permission = Model {
@@ -28,7 +30,10 @@ pub async fn store(
         name,
     };
 
-    permission.store(db).await?;
+    permission
+        .store(db)
+        .await
+        .context("Failed to store permission to database")?;
 
     Ok(permission.into())
 }

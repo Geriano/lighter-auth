@@ -1,3 +1,4 @@
+use anyhow::Context;
 use lighter_common::prelude::*;
 use sea_orm::prelude::*;
 use sea_orm::{ColumnTrait, QueryOrder, QuerySelect};
@@ -7,10 +8,11 @@ use crate::responses::v1::permission::{
     PermissionPaginationOrder, PermissionPaginationRequest, PermissionPaginationResponse,
 };
 
+#[::tracing::instrument(skip(db, request), fields(page = %request.page(), limit = %request.limit()))]
 pub async fn paginate(
     db: &DatabaseConnection,
     request: PermissionPaginationRequest,
-) -> Result<PermissionPaginationResponse, Error> {
+) -> anyhow::Result<PermissionPaginationResponse> {
     let mut query = Entity::find();
 
     if let Some(search) = request.search() {
@@ -23,7 +25,11 @@ pub async fn paginate(
         );
     }
 
-    let total = query.clone().count(db).await?;
+    let total = query
+        .clone()
+        .count(db)
+        .await
+        .context("Failed to count permissions")?;
 
     query = query
         .limit(request.limit())
@@ -37,7 +43,10 @@ pub async fn paginate(
             request.sort(),
         );
 
-    let permissions = query.all(db).await?;
+    let permissions = query
+        .all(db)
+        .await
+        .context("Failed to fetch permissions from database")?;
 
     Ok(PermissionPaginationResponse {
         total,

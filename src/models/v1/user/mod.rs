@@ -17,8 +17,8 @@ impl Model {
         match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
-                tracing::error!("Failed to find user by id");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to find user by id");
+                ::tracing::error!("Error: {}", e);
 
                 None
             }
@@ -33,8 +33,8 @@ impl Model {
         match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
-                tracing::error!("Failed to find user by email");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to find user by email");
+                ::tracing::error!("Error: {}", e);
 
                 None
             }
@@ -52,8 +52,8 @@ impl Model {
         match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
-                tracing::error!("Failed to find user by username");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to find user by username");
+                ::tracing::error!("Error: {}", e);
 
                 None
             }
@@ -75,8 +75,8 @@ impl Model {
         match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
-                tracing::error!("Failed to find user by username or email");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to find user by username or email");
+                ::tracing::error!("Error: {}", e);
 
                 None
             }

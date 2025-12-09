@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::Context;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::users::Model;
@@ -11,11 +12,12 @@ use crate::responses::v1::auth::Authenticated;
 // 1 hour
 pub const LIFETIME: Duration = Duration::from_secs(60 * 60);
 
+#[::tracing::instrument(skip(db, cached, request), fields(email_or_username = %request.email_or_username))]
 pub async fn login(
     db: &DatabaseConnection,
     cached: &Cache,
     request: LoginRequest,
-) -> Result<Authenticated, Error> {
+) -> anyhow::Result<Authenticated> {
     let mut validation = Validation::new();
     let email_or_username = request.email_or_username.trim().to_lowercase();
     let password = request.password;
@@ -33,24 +35,36 @@ pub async fn login(
     }
 
     if !validation.is_empty() {
-        return Err(validation.into());
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
     let user = Model::find_by_email_or_username(db, &email_or_username)
         .await
-        .unwrap();
+        .context("Failed to find user by email or username")?;
 
     if !Hash::from(&user.password).verify(user.id, &password) {
         validation.add("password", "Password is incorrect");
     }
 
     if !validation.is_empty() {
-        return Err(validation.into());
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
-    let token = user.generate_token(db, None).await?;
-    let permissions = user.permissions(db).await?;
-    let roles = user.roles(db).await?;
+    let token = user
+        .generate_token(db, None)
+        .await
+        .context("Failed to generate authentication token")?;
+
+    let permissions = user
+        .permissions(db)
+        .await
+        .context("Failed to fetch user permissions")?;
+
+    let roles = user
+        .roles(db)
+        .await
+        .context("Failed to fetch user roles")?;
+
     let auth = Auth {
         id: token.id,
         user: user.into(),

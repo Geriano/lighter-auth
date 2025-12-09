@@ -1,4 +1,5 @@
 use actix_web::web::Json;
+use anyhow::Context;
 use lighter_common::prelude::*;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
@@ -7,10 +8,11 @@ use crate::entities::v1::{permissions, roles};
 use crate::requests::v1::user::UserStoreRequest;
 use crate::responses::v1::user::complete::UserWithPermissionAndRole;
 
+#[::tracing::instrument(skip(db, request), fields(email = %request.email, username = %request.username))]
 pub async fn store(
     db: &DatabaseConnection,
     request: UserStoreRequest,
-) -> Result<Json<UserWithPermissionAndRole>, Error> {
+) -> anyhow::Result<Json<UserWithPermissionAndRole>> {
     let mut validation = Validation::new();
     let name = request.name.trim().to_lowercase();
     let email = request.email.trim().to_lowercase();
@@ -21,11 +23,13 @@ pub async fn store(
     let permissions = permissions::Entity::find()
         .filter(permissions::Column::Id.is_in(request.permissions.clone()))
         .all(db)
-        .await?;
+        .await
+        .context("Failed to query permissions from database")?;
     let roles = roles::Entity::find()
         .filter(roles::Column::Id.is_in(request.roles.clone()))
         .all(db)
-        .await?;
+        .await
+        .context("Failed to query roles from database")?;
 
     if name.is_empty() {
         validation.add("name", "Name is required.");
@@ -79,7 +83,7 @@ pub async fn store(
     }
 
     if !validation.is_empty() {
-        return Err(validation.into());
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
     let id = Uuid::new_v4();
@@ -98,7 +102,10 @@ pub async fn store(
         deleted_at: None,
     };
 
-    model.store(db, permissions.clone(), roles.clone()).await?;
+    model
+        .store(db, permissions.clone(), roles.clone())
+        .await
+        .context("Failed to store user to database")?;
 
     Ok(Json((model, permissions, roles).into()))
 }

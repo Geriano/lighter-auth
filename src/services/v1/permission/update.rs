@@ -1,14 +1,16 @@
+use anyhow::Context;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::permissions::Model;
 use crate::requests::v1::permission::PermissionRequest;
 use crate::responses::v1::permission::Permission;
 
+#[::tracing::instrument(skip(db, request), fields(permission_id = %id, name = %request.name))]
 pub async fn update(
     db: &DatabaseConnection,
     id: Uuid,
     request: PermissionRequest,
-) -> Result<Permission, Error> {
+) -> anyhow::Result<Permission> {
     let mut validation = Validation::new();
     let name = request.name.trim().to_lowercase();
 
@@ -17,15 +19,18 @@ pub async fn update(
     }
 
     if !validation.is_empty() {
-        return Err(validation.into());
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
-    let permission = match Model::find_by_id(db, id).await? {
-        Some(permission) => permission,
-        None => return Err(NotFound::new("Permission not found").into()),
-    };
+    let permission = Model::find_by_id(db, id)
+        .await
+        .context("Failed to query permission from database")?
+        .ok_or_else(|| anyhow::anyhow!("Permission not found"))?;
 
-    permission.update(db, name).await?;
+    permission
+        .update(db, name)
+        .await
+        .context("Failed to update permission in database")?;
 
     Ok(permission.into())
 }

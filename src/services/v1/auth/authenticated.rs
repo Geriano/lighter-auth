@@ -1,5 +1,6 @@
 use crate::middlewares::v1::auth::internal::Auth;
 
-pub async fn authenticated(auth: Auth) -> Auth {
-    auth
+#[::tracing::instrument(skip(auth), fields(user_id = %auth.user.id, token_id = %auth.id))]
+pub async fn authenticated(auth: Auth) -> anyhow::Result<Auth> {
+    Ok(auth)
 }

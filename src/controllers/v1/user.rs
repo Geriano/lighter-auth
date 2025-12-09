@@ -1,5 +1,6 @@
 use lighter_common::prelude::*;
 
+use crate::helpers::AnyhowResponder;
 use crate::requests::v1::user::{
     UserStoreRequest, UserUpdateGeneralInformationRequest, UserUpdatePasswordRequest,
 };
@@ -24,7 +25,7 @@ pub async fn paginate(
     db: Data<DatabaseConnection>,
     QueryParam(request): QueryParam<UserPaginationRequest>,
 ) -> impl Responder {
-    services::v1::user::paginate::paginate(&db, request).await
+    AnyhowResponder(services::v1::user::paginate::paginate(&db, request).await)
 }
 
 /// Store new user
@@ -49,7 +50,7 @@ pub async fn store(
     db: Data<DatabaseConnection>,
     Json(request): Json<UserStoreRequest>,
 ) -> impl Responder {
-    services::v1::user::store::store(&db, request).await
+    AnyhowResponder(services::v1::user::store::store(&db, request).await)
 }
 
 /// Find user by id
@@ -67,7 +68,7 @@ pub async fn store(
 )]
 #[get("/v1/user/{id}")]
 pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    services::v1::user::show::show(&db, id.into_inner()).await
+    AnyhowResponder(services::v1::user::show::show(&db, id.into_inner()).await)
 }
 
 /// Update general information user by id
@@ -94,7 +95,7 @@ pub async fn update_general_information(
     id: Path<Uuid>,
     Json(request): Json<UserUpdateGeneralInformationRequest>,
 ) -> impl Responder {
-    services::v1::user::update_general_information::update(&db, id.into_inner(), request).await
+    AnyhowResponder(services::v1::user::update_general_information::update(&db, id.into_inner(), request).await)
 }
 
 /// Update user password by id
@@ -122,7 +123,7 @@ pub async fn update_password(
     id: Path<Uuid>,
     Json(request): Json<UserUpdatePasswordRequest>,
 ) -> impl Responder {
-    services::v1::user::update_password::update(&db, id.into_inner(), request).await
+    AnyhowResponder(services::v1::user::update_password::update(&db, id.into_inner(), request).await)
 }
 
 /// Delete user by id
@@ -140,5 +141,5 @@ pub async fn update_password(
 )]
 #[delete("/v1/user/{id}")]
 pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    services::v1::user::delete::delete(&db, id.into_inner()).await
+    AnyhowResponder(services::v1::user::delete::delete(&db, id.into_inner()).await)
 }

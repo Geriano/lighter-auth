@@ -1,5 +1,6 @@
 use lighter_common::prelude::*;
 
+use crate::helpers::AnyhowResponder;
 use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::permission::PermissionRequest;
 use crate::responses::v1::permission::{
@@ -25,7 +26,7 @@ pub async fn paginate(
     db: Data<DatabaseConnection>,
     QueryParam(request): QueryParam<PermissionPaginationRequest>,
 ) -> impl Responder {
-    services::v1::permission::paginate::paginate(&db, request).await
+    AnyhowResponder(services::v1::permission::paginate::paginate(&db, request).await)
 }
 
 /// Store new permission
@@ -43,7 +44,7 @@ pub async fn store(
     db: Data<DatabaseConnection>,
     Json(request): Json<PermissionRequest>,
 ) -> impl Responder {
-    services::v1::permission::store::store(&db, request).await
+    AnyhowResponder(services::v1::permission::store::store(&db, request).await)
 }
 
 /// Show permission by id
@@ -56,7 +57,7 @@ pub async fn store(
 )]
 #[get("/v1/permission/{id}")]
 pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    services::v1::permission::show::show(&db, id.into_inner()).await
+    AnyhowResponder(services::v1::permission::show::show(&db, id.into_inner()).await)
 }
 
 /// Update permission by id
@@ -73,7 +74,7 @@ pub async fn update(
     id: Path<Uuid>,
     Json(request): Json<PermissionRequest>,
 ) -> impl Responder {
-    services::v1::permission::update::update(&db, id.into_inner(), request).await
+    AnyhowResponder(services::v1::permission::update::update(&db, id.into_inner(), request).await)
 }
 
 /// Delete permission by id
@@ -86,5 +87,5 @@ pub async fn update(
 )]
 #[delete("/v1/permission/{id}")]
 pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    services::v1::permission::delete::delete(&db, id.into_inner()).await
+    AnyhowResponder(services::v1::permission::delete::delete(&db, id.into_inner()).await)
 }

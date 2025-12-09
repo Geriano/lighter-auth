@@ -39,7 +39,7 @@ impl FromRequest for Auth {
             Some(db) => db,
             None => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to get database connection");
+                    ::tracing::error!("Failed to get database connection");
 
                     Err(InternalServerError::new("Failed to get database connection").into())
                 });
@@ -50,7 +50,7 @@ impl FromRequest for Auth {
             Some(authenticated) => authenticated,
             None => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to get authenticated user");
+                    ::tracing::error!("Failed to get authenticated user");
 
                     Err(InternalServerError::new("Failed to get authenticated user").into())
                 });
@@ -61,7 +61,7 @@ impl FromRequest for Auth {
             Some(header) => header,
             None => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to get authorization header");
+                    ::tracing::error!("Failed to get authorization header");
 
                     Err(BadRequest::new("Missing authorization header").into())
                 });
@@ -72,8 +72,8 @@ impl FromRequest for Auth {
             Ok(header) => header,
             Err(e) => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to convert header to string");
-                    tracing::error!("Error: {}", e);
+                    ::tracing::error!("Failed to convert header to string");
+                    ::tracing::error!("Error: {}", e);
 
                     Err(BadRequest::new("Failed to convert header to string").into())
                 });
@@ -82,7 +82,7 @@ impl FromRequest for Auth {
 
         if !header.starts_with("Bearer ") {
             return Box::pin(async move {
-                tracing::error!("Invalid authorization header");
+                ::tracing::error!("Invalid authorization header");
 
                 Err(BadRequest::new("Invalid authorization header").into())
             });
@@ -93,8 +93,8 @@ impl FromRequest for Auth {
             Ok(token) => token,
             Err(e) => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to decode token");
-                    tracing::error!("Error: {}", e);
+                    ::tracing::error!("Failed to decode token");
+                    ::tracing::error!("Error: {}", e);
 
                     Err(BadRequest::new("Failed to decode token").into())
                 });
@@ -105,8 +105,8 @@ impl FromRequest for Auth {
             Ok(id) => id,
             Err(e) => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to convert token to uuid");
-                    tracing::error!("Error: {}", e);
+                    ::tracing::error!("Failed to convert token to uuid");
+                    ::tracing::error!("Error: {}", e);
 
                     Err(BadRequest::new("Failed to convert token to uuid").into())
                 });
@@ -115,7 +115,7 @@ impl FromRequest for Auth {
 
         Box::pin(async move {
             if let Some(auth) = authenticated.get(id).await {
-                tracing::info!("Authentication took: {:?}", start.elapsed());
+                ::tracing::info!("Authentication took: {:?}", start.elapsed());
 
                 return Ok(auth);
             }
@@ -130,7 +130,7 @@ impl FromRequest for Auth {
             let (token, user) = match token {
                 Some(token) => token,
                 None => {
-                    tracing::error!("Token not found");
+                    ::tracing::error!("Token not found");
 
                     return Err(Unauthorized::new("Token not found").into());
                 }
@@ -139,7 +139,7 @@ impl FromRequest for Auth {
             if let Some(expired_at) = token.expired_at
                 && expired_at < now()
             {
-                tracing::error!("Token expired");
+                ::tracing::error!("Token expired");
 
                 return Err(Unauthorized::new("Token expired").into());
             }
@@ -162,7 +162,7 @@ impl FromRequest for Auth {
                 .remove_delay(id, Duration::from_secs(60 * 5))
                 .await;
 
-            tracing::info!("Authentication took: {:?}", start.elapsed());
+            ::tracing::info!("Authentication took: {:?}", start.elapsed());
 
             Ok(auth)
         })

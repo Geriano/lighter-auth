@@ -1,3 +1,4 @@
+use anyhow::Context;
 use lighter_common::prelude::*;
 use sea_orm::prelude::*;
 use sea_orm::{ColumnTrait, QueryOrder, QuerySelect};
@@ -7,10 +8,11 @@ use crate::responses::v1::user::simple::{
     UserPaginationOrder, UserPaginationRequest, UserPaginationResponse,
 };
 
+#[::tracing::instrument(skip(db, request), fields(page = %request.page(), limit = %request.limit()))]
 pub async fn paginate(
     db: &DatabaseConnection,
     request: UserPaginationRequest,
-) -> Result<UserPaginationResponse, Error> {
+) -> anyhow::Result<UserPaginationResponse> {
     let mut query = Entity::find().filter(Column::DeletedAt.is_null());
 
     if let Some(search) = request.search() {
@@ -24,7 +26,11 @@ pub async fn paginate(
         );
     }
 
-    let total = query.clone().count(db).await?;
+    let total = query
+        .clone()
+        .count(db)
+        .await
+        .context("Failed to count users")?;
 
     query = query
         .limit(request.limit())
@@ -40,7 +46,10 @@ pub async fn paginate(
             request.sort(),
         );
 
-    let users = query.all(db).await?;
+    let users = query
+        .all(db)
+        .await
+        .context("Failed to fetch users from database")?;
 
     Ok(UserPaginationResponse {
         total,

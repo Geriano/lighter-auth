@@ -9,8 +9,8 @@ impl Model {
         match Entity::find_by_id(id).one(db).await {
             Ok(user) => Ok(user),
             Err(e) => {
-                tracing::error!("Failed to find user by id");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to find user by id");
+                ::tracing::error!("Error: {}", e);
 
                 Err(e)
             }
@@ -24,8 +24,8 @@ impl Model {
         match query {
             Ok(count) => count > 0,
             Err(e) => {
-                tracing::error!("Failed to check if code exist");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to check if code exist");
+                ::tracing::error!("Error: {}", e);
 
                 false
             }

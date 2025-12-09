@@ -18,8 +18,8 @@ impl Model {
         match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
-                tracing::error!("Failed to find token by id");
-                tracing::error!("Error: {}", e);
+                ::tracing::error!("Failed to find token by id");
+                ::tracing::error!("Error: {}", e);
 
                 None
             }

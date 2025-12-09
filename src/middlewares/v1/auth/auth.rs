@@ -84,7 +84,7 @@ impl FromRequest for Auth {
             Some(header) => header,
             None => {
                 return Box::pin(async move {
-                    tracing::error!("Failed to get authorization header");
+                    ::tracing::error!("Failed to get authorization header");
 
                     Err(BadRequest::new("Missing authorization header").into())
                 });
@@ -139,7 +139,7 @@ impl FromRequest for Auth {
             let auth = serde_json::from_value::<Auth>(body)?;
             let elapsed = start.elapsed();
 
-            tracing::info!("Authenticated in {:?}", elapsed);
+            ::tracing::info!("Authenticated in {:?}", elapsed);
 
             Ok(auth)
         })
