@@ -118,7 +118,7 @@ impl Cache for RedisCache {
     #[tracing::instrument(skip(self), fields(cache_key = %key))]
     async fn get<V>(&self, key: &str) -> Result<Option<V>>
     where
-        V: for<'de> Deserialize<'de> + Send,
+        V: for<'de> Deserialize<'de> + Serialize + Send + Sync,
     {
         let full_key = self.build_key(key);
         let mut conn = self.connection();
@@ -282,8 +282,8 @@ mod tests {
     #[ignore] // Ignore by default, run with --ignored flag when Redis is available
     async fn test_redis_cache_new() {
         let cache = test_redis().await;
-        let stats = cache.stats().await.unwrap();
-        assert!(stats.size >= 0); // May have leftover test data
+        let _stats = cache.stats().await.unwrap();
+        // Stats retrieved successfully
     }
 
     #[tokio::test]

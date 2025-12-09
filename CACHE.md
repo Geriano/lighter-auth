@@ -1,6 +1,6 @@
 # Cache Implementation
 
-lighter-auth provides two cache implementations: LocalCache (in-memory) and RedisCache (distributed).
+lighter-auth provides three cache implementations: LocalCache (in-memory), RedisCache (distributed), and HybridCache (L1 + L2 tiered).
 
 ## LocalCache (Default)
 
@@ -181,24 +181,46 @@ let key = CacheKey::custom("api", "rate-limit");  // "api:rate-limit"
 - **Throughput**: ~1M ops/sec per core
 - **Concurrency**: Lock-free, scales with CPU cores
 - **Memory**: ~100 bytes overhead per entry + data size
+- **Distribution**: ❌ Single instance only
+- **Persistence**: ❌ Lost on restart
 
 ### RedisCache
 - **Latency**: ~1-5ms (network + Redis)
 - **Throughput**: ~100K ops/sec (network limited)
 - **Concurrency**: Excellent (Redis is single-threaded but pipelined)
 - **Memory**: Redis memory + small client overhead
+- **Distribution**: ✅ Shared across instances
+- **Persistence**: ✅ Survives restarts
+
+### HybridCache (Recommended)
+- **Latency**: < 1µs (L1 hit) / ~1-5ms (L2 hit)
+- **Throughput**: ~1M ops/sec (after L1 warmup)
+- **Concurrency**: Excellent (inherits from both layers)
+- **Memory**: L1 + L2 combined
+- **Distribution**: ✅ Shared across instances (via L2)
+- **Persistence**: ✅ Survives restarts (via L2)
+- **Resilience**: ✅ Falls back to L1 if Redis fails
 
 **Recommendation:**
 - Use **LocalCache** for:
   - Single-instance deployments
   - Hot path data (authentication tokens)
   - Sub-millisecond latency requirements
+  - Development and testing
 
 - Use **RedisCache** for:
   - Multi-instance deployments (load balanced)
   - Shared state across services
   - Persistent cache (survives restarts)
   - Cache invalidation across instances
+  - When L1 memory overhead is unacceptable
+
+- Use **HybridCache** for (RECOMMENDED):
+  - Production multi-instance deployments
+  - Need both low latency AND distribution
+  - Hot path data with occasional misses
+  - Need resilience to Redis failures
+  - Best overall performance and reliability
 
 ## Testing
 
@@ -223,7 +245,20 @@ cargo test --features "sqlite,redis-cache" cache::redis -- --ignored
 cargo test --features "sqlite,redis-cache" -- --ignored
 ```
 
-**Note**: RedisCache tests are marked `#[ignore]` by default because they require a running Redis instance. Use `--ignored` flag to run them.
+### HybridCache Tests
+```bash
+# Run HybridCache tests without Redis (L1-only mode)
+cargo test --features sqlite cache::hybrid
+
+# Run HybridCache tests with Redis (requires Redis)
+docker run -d -p 6379:6379 redis
+cargo test --features "sqlite,redis-cache" cache::hybrid -- --ignored
+
+# Run all cache tests
+cargo test --features "sqlite,redis-cache" cache:: -- --ignored
+```
+
+**Note**: RedisCache and some HybridCache tests are marked `#[ignore]` by default because they require a running Redis instance. Use `--ignored` flag to run them.
 
 ## Production Deployment
 
@@ -339,36 +374,131 @@ let cache = RedisCache::new(&redis_url, "lighter-auth").await?;
 
 **No other code changes required** - the Cache trait API is identical.
 
-### Hybrid Approach
+## HybridCache (Recommended for Production)
 
-Use LocalCache as L1 cache and RedisCache as L2:
+Two-layer cache combining LocalCache (L1) and RedisCache (L2) for optimal performance and distribution.
+
+**Features:**
+- **L1 (LocalCache)**: Fast in-memory cache (< 1µs latency)
+- **L2 (RedisCache)**: Distributed persistent cache (1-5ms latency)
+- **Automatic L1 backfill**: L2 hits populate L1 for future fast access
+- **Graceful degradation**: Falls back to L1-only if Redis unavailable
+- **Write-through**: Writes to both layers simultaneously
+- **Comprehensive metrics**: Aggregated stats from both layers
+
+**Architecture:**
+```
+Request → Check L1 (fast) → Check L2 (distributed) → Return
+          ↓ Hit              ↓ Hit (backfill L1)     ↓ Miss
+          Return             Return                   None
+```
+
+**Usage:**
 
 ```rust
-pub struct TieredCache {
-    l1: LocalCache,
-    l2: RedisCache,
-}
+use lighter_auth::cache::{Cache, LocalCache, RedisCache, HybridCache};
+use std::time::Duration;
 
-impl TieredCache {
-    pub async fn get<V>(&self, key: &str) -> Result<Option<V>>
-    where
-        V: for<'de> Deserialize<'de> + Send + Clone + Serialize + Sync,
-    {
-        // Try L1 first (fast)
-        if let Some(value) = self.l1.get(key).await? {
-            return Ok(Some(value));
+// Create L1 cache (always present)
+let l1 = LocalCache::new();
+
+// Create L2 cache (optional)
+let l2 = RedisCache::new("redis://localhost:6379", "lighter-auth").await.ok();
+
+// Create hybrid cache
+let cache = HybridCache::new(l1, l2);
+
+// Same Cache trait API
+cache.set("key", &value, Duration::from_secs(300)).await?;
+let value: Option<String> = cache.get("key").await?;
+```
+
+**L1-Only Mode** (no Redis):
+```rust
+use lighter_auth::cache::HybridCache;
+
+// Automatically falls back to LocalCache only
+let cache = HybridCache::local_only();
+
+// Works exactly the same, but only uses L1
+cache.set("key", &value, Duration::from_secs(300)).await?;
+```
+
+**Cache Strategy:**
+
+1. **get()**: Check L1 → on miss check L2 → on L2 hit backfill L1 → return
+2. **set()**: Write to L1 (fail on error) → write to L2 (log warning if fails)
+3. **delete()**: Delete from L1 → delete from L2 (log warning if fails)
+4. **exists()**: Check L1 → on miss check L2
+5. **clear()**: Clear L1 → clear L2 (log warning if fails)
+6. **stats()**: Aggregate hits/misses/evictions from both layers
+
+**Error Handling:**
+
+HybridCache gracefully degrades to L1-only mode if Redis is unavailable:
+
+```rust
+// Redis connection fails - no problem!
+let l1 = LocalCache::new();
+let l2 = RedisCache::new("redis://unreachable:6379", "app").await.ok(); // Returns None
+
+let cache = HybridCache::new(l1, l2); // Works with l2=None
+
+// All operations work, just without distributed caching
+cache.set("key", &value, Duration::from_secs(300)).await?; // Only L1
+```
+
+**Production Configuration:**
+
+```rust
+use lighter_auth::cache::{HybridCache, LocalCache, RedisCache};
+
+async fn create_production_cache() -> HybridCache {
+    // L1: In-memory cache with optimized shard count
+    let l1 = LocalCache::with_shard_count(num_cpus::get() * 4);
+
+    // L2: Redis with connection from environment
+    let l2 = match std::env::var("REDIS_URL") {
+        Ok(url) => RedisCache::new(&url, "lighter-auth").await.ok(),
+        Err(_) => {
+            tracing::warn!("REDIS_URL not set, using local-only cache");
+            None
         }
+    };
 
-        // Try L2 (slower but persistent)
-        if let Some(value) = self.l2.get(key).await? {
-            // Populate L1 for next time
-            self.l1.set(key, &value, Duration::from_secs(300)).await?;
-            return Ok(Some(value));
-        }
-
-        Ok(None)
-    }
+    HybridCache::new(l1, l2)
 }
+```
+
+**Performance Characteristics:**
+
+| Operation | L1 Hit | L2 Hit | Miss |
+|-----------|--------|--------|------|
+| get() latency | < 1µs | ~1-5ms | ~1-5ms |
+| set() latency | ~1µs | ~1-5ms | ~1-5ms |
+| Throughput | ~1M ops/s | ~100K ops/s | N/A |
+
+**Benefits:**
+- **Best of both worlds**: L1 speed + L2 distribution
+- **Reduced Redis load**: Most reads served from L1 (after warmup)
+- **High availability**: Continues working if Redis fails
+- **Transparent**: Same Cache trait API as single-layer caches
+- **Production-ready**: Comprehensive logging and error handling
+
+**When to use:**
+- ✅ Multi-instance deployments (load balanced)
+- ✅ Need low latency AND distribution
+- ✅ Hot path data with occasional misses
+- ✅ Need resilience to Redis failures
+
+**Testing:**
+
+```bash
+# Test with LocalCache only
+cargo test --features sqlite cache::hybrid::test_hybrid_cache_local_only
+
+# Test with Redis (requires running Redis)
+cargo test --features "sqlite,redis-cache" cache::hybrid -- --ignored
 ```
 
 ## Troubleshooting

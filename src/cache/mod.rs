@@ -3,10 +3,14 @@ pub mod local;
 #[cfg(feature = "redis-cache")]
 pub mod redis;
 
+pub mod hybrid;
+
 pub use local::LocalCache;
 
 #[cfg(feature = "redis-cache")]
 pub use redis::RedisCache;
+
+pub use hybrid::HybridCache;
 
 use async_trait::async_trait;
 use anyhow::Result;
@@ -22,7 +26,7 @@ pub trait Cache: Send + Sync + Debug {
     /// Returns None if the key doesn't exist or has expired
     async fn get<V>(&self, key: &str) -> Result<Option<V>>
     where
-        V: for<'de> Deserialize<'de> + Send;
+        V: for<'de> Deserialize<'de> + Serialize + Send + Sync;
 
     /// Set a value in the cache with a TTL (time-to-live)
     ///

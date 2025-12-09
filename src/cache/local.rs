@@ -125,7 +125,7 @@ impl Cache for LocalCache {
     #[tracing::instrument(skip(self), fields(cache_key = %key))]
     async fn get<V>(&self, key: &str) -> Result<Option<V>>
     where
-        V: for<'de> Deserialize<'de> + Send,
+        V: for<'de> Deserialize<'de> + Serialize + Send + Sync,
     {
         if let Some(entry) = self.store.get(key) {
             // Check if expired
