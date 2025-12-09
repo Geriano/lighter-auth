@@ -12,6 +12,8 @@ pub async fn update(
     id: Uuid,
     request: UserUpdatePasswordRequest,
 ) -> anyhow::Result<Success> {
+    ::tracing::info!("Updating user password");
+
     // Validate request DTO
     if let Err(errors) = request.validate() {
         let mut validation = Validation::new();

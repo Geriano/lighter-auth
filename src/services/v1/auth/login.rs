@@ -31,6 +31,8 @@ pub async fn login(
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
+    ::tracing::info!("Processing login request");
+
     let mut validation = Validation::new();
     let email_or_username = request.email_or_username.trim().to_lowercase();
     let password = request.password;
@@ -107,6 +109,9 @@ pub async fn login(
         .roles(db)
         .await
         .context("Failed to fetch user roles")?;
+
+    // Log before moving user
+    ::tracing::info!(user_id = %user.id, token_id = %token.id, "Login successful");
 
     let auth = Auth {
         id: token.id,

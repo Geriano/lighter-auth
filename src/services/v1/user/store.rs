@@ -108,5 +108,7 @@ pub async fn store(
         .await
         .context("Failed to store user to database")?;
 
+    ::tracing::info!(user_id = %id, "User created successfully");
+
     Ok(Json((model, permissions, roles).into()))
 }

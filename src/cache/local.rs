@@ -122,6 +122,7 @@ impl Drop for LocalCache {
 
 #[async_trait]
 impl Cache for LocalCache {
+    #[tracing::instrument(skip(self), fields(cache_key = %key))]
     async fn get<V>(&self, key: &str) -> Result<Option<V>>
     where
         V: for<'de> Deserialize<'de> + Send,
@@ -142,13 +143,16 @@ impl Cache for LocalCache {
                 .context("Failed to deserialize cached value")?;
 
             self.hits.fetch_add(1, Ordering::Relaxed);
+            ::tracing::debug!("Cache hit");
             Ok(Some(value))
         } else {
             self.misses.fetch_add(1, Ordering::Relaxed);
+            ::tracing::debug!("Cache miss");
             Ok(None)
         }
     }
 
+    #[tracing::instrument(skip(self, value), fields(cache_key = %key, ttl_secs = ?ttl.as_secs()))]
     async fn set<V>(&self, key: &str, value: &V, ttl: Duration) -> Result<()>
     where
         V: Serialize + Send + Sync,
@@ -163,14 +167,19 @@ impl Cache for LocalCache {
         // Insert into store
         self.store.insert(key.to_string(), entry);
 
+        ::tracing::debug!("Cache value set");
+
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), fields(cache_key = %key))]
     async fn delete(&self, key: &str) -> Result<()> {
         self.store.remove(key);
+        ::tracing::debug!("Cache value deleted");
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), fields(cache_key = %key))]
     async fn exists(&self, key: &str) -> Result<bool> {
         if let Some(entry) = self.store.get(key) {
             if entry.is_expired() {
@@ -187,11 +196,15 @@ impl Cache for LocalCache {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     async fn clear(&self) -> Result<()> {
+        let size = self.store.len();
         self.store.clear();
+        ::tracing::info!(cleared_entries = size, "Cache cleared");
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     async fn stats(&self) -> Result<CacheStats> {
         let hits = self.hits.load(Ordering::Relaxed);
         let misses = self.misses.load(Ordering::Relaxed);

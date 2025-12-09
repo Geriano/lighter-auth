@@ -13,6 +13,8 @@ pub async fn paginate(
     db: &DatabaseConnection,
     request: UserPaginationRequest,
 ) -> anyhow::Result<UserPaginationResponse> {
+    ::tracing::info!("Fetching paginated users");
+
     let mut query = Entity::find().filter(Column::DeletedAt.is_null());
 
     if let Some(search) = request.search() {
@@ -50,6 +52,8 @@ pub async fn paginate(
         .all(db)
         .await
         .context("Failed to fetch users from database")?;
+
+    ::tracing::info!(count = users.len(), total = total, "Users fetched successfully");
 
     Ok(UserPaginationResponse {
         total,

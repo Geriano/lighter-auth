@@ -39,5 +39,7 @@ pub async fn store(db: &DatabaseConnection, request: RoleRequest) -> anyhow::Res
         .await
         .context("Failed to store role to database")?;
 
+    ::tracing::info!(role_id = %role.id, "Role created successfully");
+
     Ok(role.into())
 }

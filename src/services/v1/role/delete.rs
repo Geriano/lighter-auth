@@ -5,6 +5,8 @@ use crate::entities::v1::roles::Model;
 
 #[::tracing::instrument(skip(db), fields(role_id = %id))]
 pub async fn delete(db: &DatabaseConnection, id: Uuid) -> anyhow::Result<Success> {
+    ::tracing::info!("Deleting role");
+
     let role = Model::find_by_id(db, id)
         .await
         .context("Failed to query role from database")?
@@ -13,6 +15,8 @@ pub async fn delete(db: &DatabaseConnection, id: Uuid) -> anyhow::Result<Success
     role.delete(db)
         .await
         .context("Failed to delete role from database")?;
+
+    ::tracing::info!("Role deleted successfully");
 
     Ok(Success)
 }

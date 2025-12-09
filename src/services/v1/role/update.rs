@@ -11,6 +11,8 @@ pub async fn update(
     id: Uuid,
     request: RoleRequest,
 ) -> anyhow::Result<Role> {
+    ::tracing::info!("Updating role");
+
     // Validate request DTO
     if let Err(errors) = request.validate() {
         let mut validation = Validation::new();
@@ -30,6 +32,8 @@ pub async fn update(
     role.update(db, name)
         .await
         .context("Failed to update role in database")?;
+
+    ::tracing::info!("Role updated successfully");
 
     Ok(role.into())
 }

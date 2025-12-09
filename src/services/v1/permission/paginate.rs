@@ -13,6 +13,8 @@ pub async fn paginate(
     db: &DatabaseConnection,
     request: PermissionPaginationRequest,
 ) -> anyhow::Result<PermissionPaginationResponse> {
+    ::tracing::info!("Fetching paginated permissions");
+
     let mut query = Entity::find();
 
     if let Some(search) = request.search() {
@@ -47,6 +49,8 @@ pub async fn paginate(
         .all(db)
         .await
         .context("Failed to fetch permissions from database")?;
+
+    ::tracing::info!(count = permissions.len(), total = total, "Permissions fetched successfully");
 
     Ok(PermissionPaginationResponse {
         total,

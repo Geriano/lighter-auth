@@ -9,6 +9,8 @@ pub async fn show(
     db: &DatabaseConnection,
     id: Uuid,
 ) -> anyhow::Result<Json<UserWithPermissionAndRole>> {
+    ::tracing::info!("Fetching user details");
+
     let user = Model::find_by_id(db, id)
         .await
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
@@ -22,6 +24,8 @@ pub async fn show(
         .roles(db)
         .await
         .context("Failed to query user roles from database")?;
+
+    ::tracing::info!("User details fetched successfully");
 
     Ok(Json((user, permissions, roles).into()))
 }

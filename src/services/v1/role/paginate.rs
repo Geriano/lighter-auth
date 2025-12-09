@@ -13,6 +13,8 @@ pub async fn paginate(
     db: &DatabaseConnection,
     request: RolePaginationRequest,
 ) -> anyhow::Result<RolePaginationResponse> {
+    ::tracing::info!("Fetching paginated roles");
+
     let mut query = Entity::find();
 
     if let Some(search) = request.search() {
@@ -47,6 +49,8 @@ pub async fn paginate(
         .all(db)
         .await
         .context("Failed to fetch roles from database")?;
+
+    ::tracing::info!(count = roles.len(), total = total, "Roles fetched successfully");
 
     Ok(RolePaginationResponse {
         total,

@@ -13,6 +13,8 @@ pub async fn update(
     id: Uuid,
     request: UserUpdateGeneralInformationRequest,
 ) -> anyhow::Result<Success> {
+    ::tracing::info!("Updating user general information");
+
     // Validate request DTO
     if let Err(errors) = request.validate() {
         let mut validation = Validation::new();
@@ -80,6 +82,8 @@ pub async fn update(
     )
     .await
     .context("Failed to update user general information in database")?;
+
+    ::tracing::info!("User general information updated successfully");
 
     Ok(Success)
 }

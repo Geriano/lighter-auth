@@ -11,6 +11,8 @@ pub async fn update(
     id: Uuid,
     request: PermissionRequest,
 ) -> anyhow::Result<Permission> {
+    ::tracing::info!("Updating permission");
+
     // Validate request DTO
     if let Err(errors) = request.validate() {
         let mut validation = Validation::new();
@@ -31,6 +33,8 @@ pub async fn update(
         .update(db, name)
         .await
         .context("Failed to update permission in database")?;
+
+    ::tracing::info!("Permission updated successfully");
 
     Ok(permission.into())
 }

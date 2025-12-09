@@ -5,6 +5,8 @@ use crate::entities::v1::permissions::Model;
 
 #[::tracing::instrument(skip(db), fields(permission_id = %id))]
 pub async fn delete(db: &DatabaseConnection, id: Uuid) -> anyhow::Result<Success> {
+    ::tracing::info!("Deleting permission");
+
     let permission = Model::find_by_id(db, id)
         .await
         .context("Failed to query permission from database")?
@@ -14,6 +16,8 @@ pub async fn delete(db: &DatabaseConnection, id: Uuid) -> anyhow::Result<Success
         .delete(db)
         .await
         .context("Failed to delete permission from database")?;
+
+    ::tracing::info!("Permission deleted successfully");
 
     Ok(Success)
 }

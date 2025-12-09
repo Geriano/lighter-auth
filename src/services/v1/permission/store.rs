@@ -43,5 +43,7 @@ pub async fn store(
         .await
         .context("Failed to store permission to database")?;
 
+    ::tracing::info!(permission_id = %permission.id, "Permission created successfully");
+
     Ok(permission.into())
 }
