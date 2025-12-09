@@ -58,6 +58,7 @@ bincode = { workspace = true }
 num_cpus = { workspace = true }
 metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
+futures-util = "0.3"
 
 [workspace.dependencies]
 lighter-auth-migration = { path = "migration" }

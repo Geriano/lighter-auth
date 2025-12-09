@@ -1981,6 +1981,7 @@ dependencies = [
  "bincode",
  "config",
  "dashmap 6.1.0",
+ "futures-util",
  "governor",
  "lighter-auth-migration",
  "lighter-common",

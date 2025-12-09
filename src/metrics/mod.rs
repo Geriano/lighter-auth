@@ -1,9 +1,14 @@
+pub mod middleware;
+
+pub use middleware::MetricsMiddleware;
+
 use metrics::{counter, describe_counter, describe_gauge, describe_histogram, gauge, histogram};
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use std::sync::{Arc, OnceLock};
 
 static PROMETHEUS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
 
+#[derive(Clone)]
 pub struct AppMetrics {
     prometheus_handle: Arc<PrometheusHandle>,
 }
