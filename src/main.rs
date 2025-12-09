@@ -25,6 +25,7 @@ use std::io::Error;
 use std::net::SocketAddr;
 
 use actix_web::{
+    middleware::{Compress, Logger},
     web::{Data, FormConfig, JsonConfig, PathConfig, PayloadConfig},
     App, HttpServer,
 };
@@ -32,9 +33,10 @@ use lighter_common::prelude::*;
 use lighter_common::database as common_database;
 
 use database::DatabasePool;
-use security::SecurityHeadersMiddleware;
+use security::{SecurityHeadersMiddleware, RateLimitMiddleware};
 use middlewares::v1::auth::Authenticated;
 use cache::{HybridCache, LocalCache};
+use metrics::{AppMetrics, MetricsMiddleware};
 
 #[cfg(feature = "redis-cache")]
 use cache::RedisCache;
@@ -112,8 +114,19 @@ async fn main() -> Result<(), Error> {
         "Cache initialized"
     );
 
+    // Initialize metrics
+    let metrics = AppMetrics::new();
+
+    ::tracing::info!(
+        "Metrics initialized with Prometheus exporter"
+    );
+
     // Create authenticated middleware with cache
     let authenticated = Data::new(Authenticated::new(cache));
+
+    // Extract database connection for handlers (clone the Arc)
+    // We keep the DatabasePool for health checks but also provide the raw connection
+    let db_connection = database.connection().clone();
 
     // Extract config for server setup
     let addr: SocketAddr = format!("{}:{}", app_config.server.host, app_config.server.port)
@@ -124,6 +137,7 @@ async fn main() -> Result<(), Error> {
     let workers = app_config.server.workers;
     let shutdown_timeout = app_config.app.shutdown_timeout;
     let security_headers_config = app_config.security.headers.clone();
+    let rate_limit_config = app_config.security.rate_limit.clone();
 
     ::tracing::info!(
         host = %app_config.server.host,
@@ -131,6 +145,9 @@ async fn main() -> Result<(), Error> {
         workers = %workers,
         shutdown_timeout = %shutdown_timeout,
         security_headers_enabled = %security_headers_config.enabled,
+        rate_limit_enabled = %rate_limit_config.enabled,
+        rate_limit_requests = %rate_limit_config.requests,
+        rate_limit_window = %rate_limit_config.window,
         "Configuring HTTP server"
     );
 
@@ -141,15 +158,36 @@ async fn main() -> Result<(), Error> {
         let json = JsonConfig::default().limit(max_payload);
         let form = FormConfig::default().limit(max_payload);
 
+        // Convert RateLimitConfig to the format expected by RateLimitMiddleware
+        let rate_limit_middleware_config = crate::security::rate_limit::RateLimitConfig {
+            requests_per_window: rate_limit_config.requests,
+            window_seconds: rate_limit_config.window,
+            burst_capacity: rate_limit_config.burst,
+            enabled: rate_limit_config.enabled,
+        };
+
         App::new()
-            // Add security headers middleware first (applies to all routes)
+            // Middleware order (outer to inner):
+            // 1. MetricsMiddleware - tracks all requests (must be outermost)
+            .wrap(MetricsMiddleware::new(metrics.clone()))
+            // 2. Logger - logs all requests
+            .wrap(Logger::default())
+            // 3. Compress - compresses responses
+            .wrap(Compress::default())
+            // 4. RateLimitMiddleware - rate limits requests per IP
+            .wrap(RateLimitMiddleware::new(rate_limit_middleware_config))
+            // 5. SecurityHeadersMiddleware - applies security headers
             .wrap(SecurityHeadersMiddleware::new(security_headers_config.clone()))
+            // App data (available to all handlers)
             .app_data(payload)
             .app_data(path)
             .app_data(json)
             .app_data(form)
-            .app_data(Data::new(database.clone()))
+            .app_data(Data::new(db_connection.clone()))  // For regular handlers
+            .app_data(Data::new(database.clone()))       // For health checks
             .app_data(Data::clone(&authenticated))
+            .app_data(Data::new(metrics.clone()))
+            // Configure routes
             .configure(router::route)
     });
 
