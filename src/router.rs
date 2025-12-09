@@ -4,10 +4,12 @@ use utoipa_swagger_ui::{SwaggerUi, Url};
 
 use crate::api::Definition;
 use crate::controllers;
+use crate::metrics::AppMetrics;
 use crate::middlewares::v1::auth::Authenticated;
 
 pub fn route(app: &mut ServiceConfig) {
     app.app_data(Data::new(Authenticated::new()));
+    app.app_data(Data::new(AppMetrics::new()));
     app.service(index);
     // User
     app.service(controllers::v1::user::paginate);
@@ -32,6 +34,9 @@ pub fn route(app: &mut ServiceConfig) {
     app.service(controllers::v1::auth::login);
     app.service(controllers::v1::auth::authenticated);
     app.service(controllers::v1::auth::logout);
+
+    // Metrics endpoint
+    app.service(controllers::metrics::metrics);
 
     // must at the end!
     app.service(web::redirect("/docs", "/docs/"));
