@@ -33,6 +33,11 @@ use lighter_common::database as common_database;
 
 use database::DatabasePool;
 use security::SecurityHeadersMiddleware;
+use middlewares::v1::auth::Authenticated;
+use cache::{HybridCache, LocalCache};
+
+#[cfg(feature = "redis-cache")]
+use cache::RedisCache;
 
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
@@ -66,6 +71,49 @@ async fn main() -> Result<(), Error> {
         circuit_breaker_enabled = %database.is_circuit_breaker_enabled(),
         "Database pool with circuit breaker initialized"
     );
+
+    // Initialize cache (HybridCache with L1 + optional L2)
+    let l1 = LocalCache::new();
+
+    #[cfg(feature = "redis-cache")]
+    let l2 = match std::env::var("REDIS_URL") {
+        Ok(url) => {
+            ::tracing::info!(redis_url = %url, "Attempting to connect to Redis");
+            match RedisCache::new(&url, "lighter-auth").await {
+                Ok(redis) => {
+                    ::tracing::info!("Redis connection established, using hybrid cache (L1 + L2)");
+                    Some(redis)
+                }
+                Err(e) => {
+                    ::tracing::warn!(error = %e, "Failed to connect to Redis, using local cache only");
+                    None
+                }
+            }
+        }
+        Err(_) => {
+            ::tracing::info!("REDIS_URL not set, using local cache only");
+            None
+        }
+    };
+
+    #[cfg(not(feature = "redis-cache"))]
+    let l2: Option<()> = None;
+
+    let cache = std::sync::Arc::new(HybridCache::new(l1, l2));
+
+    #[cfg(feature = "redis-cache")]
+    let cache_type = if l2.is_some() { "hybrid (L1+L2)" } else { "local (L1 only)" };
+
+    #[cfg(not(feature = "redis-cache"))]
+    let cache_type = "local (L1 only)";
+
+    ::tracing::info!(
+        cache_type = cache_type,
+        "Cache initialized"
+    );
+
+    // Create authenticated middleware with cache
+    let authenticated = Data::new(Authenticated::new(cache));
 
     // Extract config for server setup
     let addr: SocketAddr = format!("{}:{}", app_config.server.host, app_config.server.port)
@@ -101,6 +149,7 @@ async fn main() -> Result<(), Error> {
             .app_data(json)
             .app_data(form)
             .app_data(Data::new(database.clone()))
+            .app_data(Data::clone(&authenticated))
             .configure(router::route)
     });
 

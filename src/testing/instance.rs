@@ -55,11 +55,14 @@ macro_rules! app {
 macro_rules! service {
     () => {{
         let db = $crate::testing::instance::database().await.unwrap();
+
+        // Create cache for testing
+        let cache = std::sync::Arc::new($crate::cache::HybridCache::local_only());
+        let authenticated = $crate::middlewares::v1::auth::Authenticated::new(cache);
+
         let app = ::actix_web::App::new()
             .app_data(::actix_web::web::Data::new(db.clone()))
-            .app_data(::actix_web::web::Data::new(
-                $crate::middlewares::v1::auth::Authenticated::new(),
-            ))
+            .app_data(::actix_web::web::Data::new(authenticated))
             .configure($crate::router::route);
 
         let service = ::actix_web::test::init_service(app).await;

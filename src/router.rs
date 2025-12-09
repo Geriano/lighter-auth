@@ -5,10 +5,9 @@ use utoipa_swagger_ui::{SwaggerUi, Url};
 use crate::api::Definition;
 use crate::controllers;
 use crate::metrics::AppMetrics;
-use crate::middlewares::v1::auth::Authenticated;
 
 pub fn route(app: &mut ServiceConfig) {
-    app.app_data(Data::new(Authenticated::new()));
+    // Note: Authenticated middleware is now initialized in main.rs with cache
     app.app_data(Data::new(AppMetrics::new()));
     app.service(index);
     // User

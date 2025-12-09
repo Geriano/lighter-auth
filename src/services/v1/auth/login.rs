@@ -123,8 +123,14 @@ pub async fn login(
         roles: roles.into_iter().map(|role| role.into()).collect(),
     };
 
-    cached.set(token.id, &auth).await;
-    cached.remove_delay(token.id, LIFETIME).await;
+    // Cache the auth (log errors but don't fail the login)
+    if let Err(e) = cached.set(token.id, &auth).await {
+        ::tracing::warn!(error = %e, "Failed to cache auth after login");
+    }
+
+    if let Err(e) = cached.remove_delay(token.id, LIFETIME).await {
+        ::tracing::warn!(error = %e, "Failed to schedule cache removal after login");
+    }
 
     Ok(auth.into())
 }

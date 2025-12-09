@@ -114,12 +114,23 @@ impl FromRequest for Auth {
         };
 
         Box::pin(async move {
-            if let Some(auth) = authenticated.get(id).await {
-                ::tracing::info!("Authentication took: {:?}", start.elapsed());
+            // Check cache first
+            let cached_auth = match authenticated.get(id).await {
+                Ok(Some(auth)) => {
+                    ::tracing::debug!("Cache hit, verifying token still exists in database");
+                    Some(auth)
+                }
+                Ok(None) => {
+                    ::tracing::debug!("Cache miss, querying database");
+                    None
+                }
+                Err(e) => {
+                    ::tracing::warn!(error = %e, "Cache error, falling back to database");
+                    None
+                }
+            };
 
-                return Ok(auth);
-            }
-
+            // Always check database to ensure token wasn't deleted (e.g., after logout)
             let db: &DatabaseConnection = &db;
             let token = tokens::Entity::find_by_id(id)
                 .find_with_related(users::Entity)
@@ -130,7 +141,14 @@ impl FromRequest for Auth {
             let (token, user) = match token {
                 Some(token) => token,
                 None => {
-                    ::tracing::error!("Token not found");
+                    ::tracing::error!("Token not found in database (may have been deleted)");
+
+                    // Remove from cache if it was there
+                    if cached_auth.is_some() {
+                        if let Err(e) = authenticated.remove(id).await {
+                            ::tracing::warn!(error = %e, "Failed to remove stale auth from cache");
+                        }
+                    }
 
                     return Err(Unauthorized::new("Token not found").into());
                 }
@@ -141,9 +159,21 @@ impl FromRequest for Auth {
             {
                 ::tracing::error!("Token expired");
 
+                // Remove expired token from cache
+                if let Err(e) = authenticated.remove(id).await {
+                    ::tracing::warn!(error = %e, "Failed to remove expired token from cache");
+                }
+
                 return Err(Unauthorized::new("Token expired").into());
             }
 
+            // If we had cached auth and token is still valid in DB, use cached auth
+            if let Some(auth) = cached_auth {
+                ::tracing::info!("Authentication from cache (verified in DB) took: {:?}", start.elapsed());
+                return Ok(auth);
+            }
+
+            // Cache miss: fetch full auth data from database
             let user = user.first().cloned().unwrap();
             let permissions = user.permissions(db).await?;
             let roles = user.roles(db).await?;
@@ -157,12 +187,16 @@ impl FromRequest for Auth {
                 roles: roles.into_iter().map(|role| role.into()).collect(),
             };
 
-            authenticated.set(id, &auth).await;
-            authenticated
-                .remove_delay(id, Duration::from_secs(60 * 5))
-                .await;
+            // Cache the auth (log errors but don't fail)
+            if let Err(e) = authenticated.set(id, &auth).await {
+                ::tracing::warn!(error = %e, "Failed to cache auth");
+            }
 
-            ::tracing::info!("Authentication took: {:?}", start.elapsed());
+            if let Err(e) = authenticated.remove_delay(id, Duration::from_secs(60 * 5)).await {
+                ::tracing::warn!(error = %e, "Failed to schedule cache removal");
+            }
+
+            ::tracing::info!("Authentication from database took: {:?}", start.elapsed());
 
             Ok(auth)
         })

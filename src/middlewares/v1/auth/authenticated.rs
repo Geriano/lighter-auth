@@ -1,48 +1,95 @@
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use lighter_common::prelude::*;
 
-use super::internal::Auth;
+use crate::cache::{Cache, CacheKey, HybridCache};
+
+// Re-export the internal Auth type for use with the cache
+pub use super::internal::Auth;
 
 #[derive(Clone)]
 pub struct Authenticated {
-    users: Arc<Mutex<BTreeMap<Uuid, Auth>>>,
-}
-
-impl Default for Authenticated {
-    fn default() -> Self {
-        Self {
-            users: Arc::new(Mutex::new(BTreeMap::new())),
-        }
-    }
+    cache: Arc<HybridCache>,
 }
 
 impl Authenticated {
-    pub fn new() -> Self {
-        Self::default()
+    /// Create new Authenticated with a cache instance
+    pub fn new(cache: Arc<HybridCache>) -> Self {
+        Self { cache }
     }
 
-    pub async fn get(&self, id: Uuid) -> Option<Auth> {
-        self.users.lock().unwrap().get(&id).cloned()
+    /// Get auth from cache by token ID
+    #[::tracing::instrument(skip(self), fields(token_id = %token_id))]
+    pub async fn get(&self, token_id: Uuid) -> anyhow::Result<Option<Auth>> {
+        let key = CacheKey::token(&token_id);
+
+        match self.cache.get::<Auth>(&key).await {
+            Ok(result) => {
+                if result.is_some() {
+                    ::tracing::debug!("Auth cache hit");
+                } else {
+                    ::tracing::debug!("Auth cache miss");
+                }
+                Ok(result)
+            }
+            Err(e) => {
+                ::tracing::error!(error = %e, "Failed to get auth from cache");
+                Err(e)
+            }
+        }
     }
 
-    pub async fn set(&self, id: Uuid, auth: &Auth) {
-        self.users.lock().unwrap().insert(id, auth.clone());
+    /// Set auth in cache with 5-minute TTL
+    #[::tracing::instrument(skip(self, auth), fields(token_id = %token_id, user_id = %auth.user.id))]
+    pub async fn set(&self, token_id: Uuid, auth: &Auth) -> anyhow::Result<()> {
+        let key = CacheKey::token(&token_id);
+
+        match self.cache.set(&key, auth, Duration::from_secs(300)).await {
+            Ok(_) => {
+                ::tracing::debug!("Auth cached successfully");
+                Ok(())
+            }
+            Err(e) => {
+                ::tracing::error!(error = %e, "Failed to set auth in cache");
+                Err(e)
+            }
+        }
     }
 
-    pub async fn remove(&self, id: Uuid) {
-        self.users.lock().unwrap().remove(&id);
+    /// Remove auth from cache (for logout)
+    #[::tracing::instrument(skip(self), fields(token_id = %token_id))]
+    pub async fn remove(&self, token_id: Uuid) -> anyhow::Result<()> {
+        let key = CacheKey::token(&token_id);
+
+        match self.cache.delete(&key).await {
+            Ok(_) => {
+                ::tracing::debug!("Auth removed from cache");
+                Ok(())
+            }
+            Err(e) => {
+                ::tracing::error!(error = %e, "Failed to remove auth from cache");
+                Err(e)
+            }
+        }
     }
 
-    pub async fn remove_delay(&self, id: Uuid, delay: Duration) {
-        let s = self.clone();
+    /// Remove auth from cache after a delay
+    #[::tracing::instrument(skip(self), fields(token_id = %token_id, delay_secs = ?delay.as_secs()))]
+    pub async fn remove_delay(&self, token_id: Uuid, delay: Duration) -> anyhow::Result<()> {
+        let cache = self.cache.clone();
 
         actix::spawn(async move {
             actix::clock::sleep(delay).await;
+            let key = CacheKey::token(&token_id);
 
-            s.remove(id).await;
+            if let Err(e) = cache.delete(&key).await {
+                ::tracing::error!(error = %e, token_id = %token_id, "Failed to remove auth from cache after delay");
+            } else {
+                ::tracing::debug!(token_id = %token_id, "Auth removed from cache after delay");
+            }
         });
+
+        Ok(())
     }
 }

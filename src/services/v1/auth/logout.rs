@@ -13,7 +13,10 @@ pub async fn logout(auth: Auth, db: &DatabaseConnection, cached: &Cache) -> anyh
         .await
         .context("Failed to logout user and delete tokens from database")?;
 
-    cached.remove(auth.id).await;
+    // Remove from cache (log error but don't fail the logout if cache removal fails)
+    if let Err(e) = cached.remove(auth.id).await {
+        ::tracing::warn!(error = %e, "Failed to remove auth from cache, but logout succeeded in database");
+    }
 
     ::tracing::info!("Logout successful");
 
