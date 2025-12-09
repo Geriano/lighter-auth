@@ -1,0 +1,69 @@
+# =============================================================================
+# Lighter Auth Service - Development Configuration
+# =============================================================================
+# This file contains development-specific overrides.
+# These settings prioritize developer experience and debugging over performance.
+# =============================================================================
+
+[app]
+environment = "development"
+
+[database]
+# Use SQLite in-memory database for development
+# Fast startup, no persistence needed for local testing
+url = "sqlite::memory:"
+max_connections = 10
+log_queries = true
+auto_migrate = true
+
+[database.migration]
+# Auto-migrate in development for convenience
+auto_migrate = true
+strict = false
+
+[cache]
+# Use local cache only (no Redis required)
+type = "local"
+
+[cache.redis]
+enabled = false
+
+[security.cors]
+# Allow all origins in development
+origins = ["*"]
+allow_credentials = true
+
+[security.rate_limit]
+# Disable rate limiting in development
+enabled = false
+
+[security.headers]
+# Relaxed security headers for development
+enabled = false
+
+[resilience.circuit_breaker]
+# Disable circuit breaker in development
+enabled = false
+
+[resilience.retry]
+# Disable retries in development for faster feedback
+enabled = false
+
+[observability]
+# Debug level logging for development
+log_level = "debug"
+log_format = "pretty"
+tracing_enabled = true
+trace_sampler = "always"
+
+[metrics]
+# Enable all metrics for development visibility
+enabled = true
+request_metrics = true
+database_metrics = true
+cache_metrics = true
+system_metrics = true
+
+[api]
+# Enable Swagger for API exploration
+swagger_enabled = true

@@ -36,9 +36,17 @@ pub async fn update_password() -> Result<(), lighter_common::prelude::Error> {
     assert_eq!(status, StatusCode::OK, "{:?}", body);
 
     let user = users::Entity::find_by_id(id).one(&db).await?.unwrap();
-    let hash = Hash::from(&user.password);
 
-    assert!(hash.verify(user.id, new_password));
+    // Verify new password with Argon2id hasher
+    use crate::config::auth::AuthConfig;
+    use crate::security::PasswordHasher;
+
+    let default_config = AuthConfig::default();
+    let hasher = PasswordHasher::from_config(&default_config)
+        .expect("Failed to create password hasher");
+
+    assert!(hasher.verify(&new_password, &user.password).unwrap(),
+            "New password should be verified successfully");
 
     users::Entity::update_many()
         .filter(users::Column::Id.eq(id))

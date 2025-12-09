@@ -1,4 +1,9 @@
+use argon2::{
+    password_hash::{PasswordHasher as Argon2Hasher, SaltString},
+    Argon2, Algorithm, Params, Version,
+};
 use lighter_common::prelude::*;
+use rand::rngs::OsRng;
 use sea_orm_migration::prelude::*;
 
 use crate::{
@@ -20,6 +25,24 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let user_id = Uuid::from_u128(0);
 
+        // Create Argon2id hasher with production-ready parameters
+        let params = Params::new(
+            65536, // 64 MB memory cost
+            3,     // 3 iterations
+            4,     // 4 threads parallelism
+            Some(32), // 32 bytes hash length
+        )
+        .expect("Invalid Argon2 parameters");
+
+        let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+
+        // Generate salt and hash password
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = argon2
+            .hash_password(b"password", &salt)
+            .expect("Failed to hash password")
+            .to_string();
+
         manager
             .exec_stmt(
                 Query::insert()
@@ -38,7 +61,7 @@ impl MigrationTrait for Migration {
                         "superuser".into(),
                         "root@local".into(),
                         "root".into(),
-                        Hash::make(user_id, "password").to_string().into(),
+                        password_hash.into(),
                         chrono::Utc::now().naive_utc().into(),
                         chrono::Utc::now().naive_utc().into(),
                     ])

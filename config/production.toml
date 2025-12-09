@@ -1,0 +1,124 @@
+# =============================================================================
+# Lighter Auth Service - Production Configuration
+# =============================================================================
+# This file contains production-specific overrides.
+# These settings prioritize security, performance, and reliability.
+# =============================================================================
+
+[app]
+environment = "production"
+shutdown_timeout = 60
+
+[server]
+# Production server settings
+workers = 0  # Auto-detect CPU count
+http2 = true
+
+[server.tls]
+# TLS should be enabled in production
+# Set cert and key paths via environment variables:
+# LIGHTER_AUTH__SERVER__TLS__CERT=/path/to/cert.pem
+# LIGHTER_AUTH__SERVER__TLS__KEY=/path/to/key.pem
+enabled = false  # Set to true after configuring certs
+
+[database]
+# PostgreSQL with production-ready connection pooling
+# Set URL via environment variable:
+# LIGHTER_AUTH__DATABASE__URL=postgres://user:pass@host:port/dbname
+url = "postgres://lighter:lighter@localhost:5432/lighter_auth"
+max_connections = 100
+min_connections = 10
+connect_timeout = 10
+idle_timeout = 300
+max_lifetime = 1800
+log_queries = false
+slow_query_threshold = 500
+
+[database.migration]
+# Never auto-migrate in production
+auto_migrate = false
+strict = true
+
+[cache]
+# Use Redis for distributed caching
+type = "redis"
+
+[cache.redis]
+enabled = true
+# Set Redis URL via environment variable:
+# LIGHTER_AUTH__CACHE__REDIS__URL=redis://host:port
+url = "redis://localhost:6379"
+pool_size = 50
+timeout = 3
+tls = false  # Set to true if using Redis with TLS
+
+[security.cors]
+# Strict CORS in production - specify exact origins
+# Set via environment variable:
+# LIGHTER_AUTH__SECURITY__CORS__ORIGINS='["https://app.example.com"]'
+origins = []  # Empty = deny all (override in config or env)
+allow_credentials = true
+
+[security.rate_limit]
+# Enable aggressive rate limiting in production
+enabled = true
+requests = 100
+window = 60
+burst = 10
+
+[security.headers]
+# Enable all security headers in production
+enabled = true
+csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+hsts_max_age = 31536000  # 1 year
+x_frame_options = "DENY"
+x_content_type_options = "nosniff"
+referrer_policy = "strict-origin-when-cross-origin"
+
+[resilience.circuit_breaker]
+# Enable circuit breaker for fault tolerance
+enabled = true
+threshold = 5
+timeout = 60
+success_threshold = 2
+
+[resilience.retry]
+# Enable retries with exponential backoff
+enabled = true
+max_attempts = 3
+backoff = "exponential"
+initial_delay = 100
+max_delay = 5000
+multiplier = 2.0
+
+[observability]
+# Production logging: JSON format for log aggregation
+log_level = "info"
+log_format = "json"
+tracing_enabled = true
+trace_sampler = "probabilistic"
+trace_sampling_rate = 0.1  # Sample 10% of traces
+
+# Set OTLP endpoint via environment variable:
+# LIGHTER_AUTH__OBSERVABILITY__OTLP_ENDPOINT=http://otel-collector:4317
+otlp_endpoint = "http://localhost:4317"
+
+[metrics]
+# Enable all metrics for production monitoring
+enabled = true
+export_format = "prometheus"
+request_metrics = true
+database_metrics = true
+cache_metrics = true
+system_metrics = true
+
+[auth.jwt]
+# JWT should be enabled in production for stateless auth
+# Set secret via environment variable (REQUIRED):
+# LIGHTER_AUTH__AUTH__JWT__SECRET=your-secret-key-at-least-32-chars
+enabled = false  # Set to true after configuring secret
+algorithm = "HS256"
+
+[api]
+# Disable Swagger in production for security
+swagger_enabled = false

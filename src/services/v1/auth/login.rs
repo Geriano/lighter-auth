@@ -2,12 +2,16 @@ use std::time::Duration;
 
 use anyhow::Context;
 use lighter_common::prelude::*;
+use sea_orm::ActiveModelTrait;
+use sea_orm::ActiveValue::Set;
 
-use crate::entities::v1::users::Model;
+use crate::config::auth::AuthConfig;
+use crate::entities::v1::users::{ActiveModel, Model};
 use crate::middlewares::v1::auth::Authenticated as Cache;
 use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::auth::LoginRequest;
 use crate::responses::v1::auth::Authenticated;
+use crate::security::PasswordHasher;
 
 // 1 hour
 pub const LIFETIME: Duration = Duration::from_secs(60 * 60);
@@ -40,16 +44,53 @@ pub async fn login(
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
-    let user = Model::find_by_email_or_username(db, &email_or_username)
+    let mut user = Model::find_by_email_or_username(db, &email_or_username)
         .await
         .context("Failed to find user by email or username")?;
 
-    if !Hash::from(&user.password).verify(user.id, &password) {
+    // Create default AuthConfig for password hashing
+    let default_config = AuthConfig::default();
+
+    ::tracing::debug!("Creating password hasher with Argon2id");
+    let hasher = PasswordHasher::from_config(&default_config)
+        .map_err(|e| anyhow::anyhow!("Failed to create password hasher: {}", e))?;
+
+    // Check if password hash is in legacy SHA-256 format
+    if user.password.len() == 64 && user.password.chars().all(|c| c.is_ascii_hexdigit()) {
+        ::tracing::warn!(user_id = %user.id, "User has legacy SHA-256 password hash");
+        validation.add("password", "Your account uses an outdated password format. Please reset your password.");
+        return Err(anyhow::anyhow!("Legacy password format detected"));
+    }
+
+    // Verify password with Argon2id
+    ::tracing::debug!(user_id = %user.id, "Verifying password");
+    let is_valid = hasher.verify(&password, &user.password)
+        .map_err(|e| anyhow::anyhow!("Failed to verify password: {}", e))?;
+
+    if !is_valid {
         validation.add("password", "Password is incorrect");
     }
 
     if !validation.is_empty() {
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
+    }
+
+    // Check if password needs rehashing (e.g., Argon2 parameters changed)
+    if hasher.needs_rehash(&user.password).unwrap_or(false) {
+        ::tracing::info!(user_id = %user.id, "Rehashing password with updated Argon2 parameters");
+
+        let new_hash = hasher.hash(&password)
+            .map_err(|e| anyhow::anyhow!("Failed to rehash password: {}", e))?;
+
+        // Update password hash in database
+        let mut active_user: ActiveModel = user.clone().into();
+        active_user.password = Set(new_hash.clone());
+        active_user.update(db)
+            .await
+            .context("Failed to update password hash")?;
+
+        // Update user reference with new hash
+        user.password = new_hash;
     }
 
     let token = user

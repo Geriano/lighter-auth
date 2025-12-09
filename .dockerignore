@@ -1,3 +1,33 @@
-target
-migration/target
+# Build artifacts
+target/
+**/target/
+migration/target/
 
+# Git
+.git/
+.github/
+.gitignore
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (keep README)
+*.md
+!README.md
+
+# Logs
+*.log
+
+# Test databases
+*.db
+*.sqlite
+*.sqlite3

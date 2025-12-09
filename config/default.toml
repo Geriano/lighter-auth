@@ -1,0 +1,439 @@
+# =============================================================================
+# Lighter Auth Service - Default Configuration
+# =============================================================================
+# This file contains sensible production defaults for all configuration
+# settings. Override values in:
+#   - config/development.toml for development
+#   - config/production.toml for production
+#   - config/local.toml for developer-specific settings (git-ignored)
+#   - Environment variables: LIGHTER_AUTH__SECTION__KEY=value
+#
+# Configuration precedence (highest to lowest):
+#   1. Environment variables
+#   2. config/local.toml
+#   3. config/{APP_ENV}.toml
+#   4. config/default.toml
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Application Metadata
+# -----------------------------------------------------------------------------
+[app]
+# Service name used in logs, traces, and metrics
+name = "lighter-auth"
+
+# Application version (should match Cargo.toml)
+version = "0.1.0"
+
+# Runtime environment: development, staging, production
+environment = "development"
+
+# Graceful shutdown timeout in seconds
+# Server will wait this long for active connections to close
+shutdown_timeout = 30
+
+# -----------------------------------------------------------------------------
+# HTTP Server Configuration
+# -----------------------------------------------------------------------------
+[server]
+# Bind address for the HTTP server
+# Use "0.0.0.0" to accept connections on all interfaces
+# Use "127.0.0.1" for localhost only
+host = "0.0.0.0"
+
+# Port to listen on
+port = 8080
+
+# Number of worker threads (0 = auto-detect from CPU count)
+workers = 0
+
+# Maximum size of request payload in bytes (10 MB default)
+max_payload_size = 10485760
+
+# HTTP keep-alive timeout in seconds
+# Connections idle for this duration will be closed
+keep_alive = 75
+
+# Client request timeout in seconds
+# Requests taking longer than this will be aborted
+client_timeout = 60
+
+# Enable HTTP/2 support
+http2 = true
+
+# TLS/HTTPS Configuration
+[server.tls]
+# Enable TLS (requires cert and key files)
+enabled = false
+
+# Path to TLS certificate file (PEM format)
+cert = ""
+
+# Path to TLS private key file (PEM format)
+key = ""
+
+# -----------------------------------------------------------------------------
+# Database Configuration
+# -----------------------------------------------------------------------------
+[database]
+# Database connection URL
+# PostgreSQL: postgres://user:pass@host:port/dbname
+# SQLite: sqlite://path/to/file.db or sqlite::memory:
+url = "postgres://lighter:lighter@localhost:5432/lighter_auth"
+
+# Maximum number of connections in the pool
+max_connections = 100
+
+# Minimum number of idle connections to maintain
+min_connections = 5
+
+# Connection timeout in seconds
+# Fail if connection cannot be established within this time
+connect_timeout = 30
+
+# Idle connection timeout in seconds
+# Connections idle for this duration are closed
+idle_timeout = 600
+
+# Maximum lifetime of a connection in seconds
+# Connections are closed after this duration regardless of activity
+max_lifetime = 3600
+
+# Enable SQL query logging
+# WARNING: May expose sensitive data in logs
+log_queries = false
+
+# Slow query threshold in milliseconds
+# Queries taking longer than this will be logged as warnings
+slow_query_threshold = 1000
+
+# Database Migration Settings
+[database.migration]
+# Automatically run pending migrations on startup
+# WARNING: Disable in production for safety
+auto_migrate = false
+
+# Strict mode: fail on migration warnings
+strict = true
+
+# -----------------------------------------------------------------------------
+# Cache Configuration
+# -----------------------------------------------------------------------------
+[cache]
+# Cache type: local, redis, hybrid, none
+# - local: In-memory LRU cache
+# - redis: Distributed Redis cache
+# - hybrid: Local cache with Redis fallback
+# - none: Disable caching
+type = "local"
+
+# Default TTL for cached items in seconds
+default_ttl = 300
+
+# Maximum number of items in local cache
+max_size = 10000
+
+# Eviction policy: lru, lfu, ttl
+# - lru: Least Recently Used
+# - lfu: Least Frequently Used
+# - ttl: Time To Live (expire oldest first)
+eviction_policy = "ttl"
+
+# Local Cache Settings
+[cache.local]
+# Enable local cache
+enabled = true
+
+# Number of cache shards (0 = CPU count * 4)
+# More shards reduce lock contention but increase memory overhead
+shards = 0
+
+# Redis Cache Settings
+[cache.redis]
+# Enable Redis cache (requires redis-cache feature)
+enabled = false
+
+# Redis connection URL
+url = "redis://localhost:6379"
+
+# Redis database number (0-15)
+database = 0
+
+# Connection pool size
+pool_size = 20
+
+# Operation timeout in seconds
+timeout = 5
+
+# Enable TLS for Redis connection
+tls = false
+
+# -----------------------------------------------------------------------------
+# Metrics and Monitoring
+# -----------------------------------------------------------------------------
+[metrics]
+# Enable metrics collection
+enabled = true
+
+# Export format: prometheus, json
+export_format = "prometheus"
+
+# Metrics endpoint path
+endpoint = "/metrics"
+
+# Histogram bucket boundaries in milliseconds
+# Used for request duration metrics
+histogram_buckets = [5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0]
+
+# Enable request metrics (counts, durations, status codes)
+request_metrics = true
+
+# Enable database metrics (connection pool, query durations)
+database_metrics = true
+
+# Enable cache metrics (hits, misses, evictions)
+cache_metrics = true
+
+# Enable system metrics (CPU, memory, disk)
+system_metrics = true
+
+# -----------------------------------------------------------------------------
+# Authentication Configuration
+# -----------------------------------------------------------------------------
+[auth]
+# Token expiration in seconds (1 hour default)
+token_expiration = 3600
+
+# Token cleanup interval in seconds (15 minutes)
+# Background task removes expired tokens
+token_cleanup_interval = 900
+
+# Maximum concurrent sessions per user
+max_sessions = 5
+
+# Session cache TTL in seconds
+# Cache active sessions to reduce database queries
+session_cache_ttl = 300
+
+# Password hash algorithm: argon2, bcrypt
+password_hash_algorithm = "argon2"
+
+# Argon2 Password Hashing Configuration
+[auth.argon2]
+# Memory cost in KiB (64 MB default)
+# Higher values increase security but use more RAM
+memory_cost = 65536
+
+# Time cost (number of iterations)
+# Higher values increase security but take longer
+time_cost = 3
+
+# Parallelism factor (number of threads)
+# Should match CPU core count for optimal performance
+parallelism = 4
+
+# Output hash length in bytes
+hash_length = 32
+
+# Salt length in bytes
+salt_length = 16
+
+# JWT Token Configuration
+[auth.jwt]
+# Enable JWT token generation
+# Disable to use opaque tokens stored in database
+enabled = false
+
+# JWT signing secret (REQUIRED if enabled)
+# NEVER commit secrets! Set via environment variable:
+# LIGHTER_AUTH__AUTH__JWT__SECRET=your-secret-key
+secret = ""
+
+# JWT signing algorithm: HS256, HS384, HS512, RS256, RS384, RS512
+algorithm = "HS256"
+
+# JWT issuer claim
+issuer = "lighter-auth"
+
+# JWT audience claim
+audience = "lighter-api"
+
+# -----------------------------------------------------------------------------
+# Security Configuration
+# -----------------------------------------------------------------------------
+
+# CORS (Cross-Origin Resource Sharing)
+[security.cors]
+# Enable CORS
+enabled = true
+
+# Allowed origins (["*"] allows all origins)
+# Production should specify exact origins: ["https://example.com"]
+origins = ["*"]
+
+# Allowed HTTP methods
+methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+
+# Allowed request headers
+headers = ["Authorization", "Content-Type"]
+
+# CORS preflight cache duration in seconds
+max_age = 3600
+
+# Allow credentials (cookies, authorization headers)
+allow_credentials = false
+
+# Rate Limiting
+[security.rate_limit]
+# Enable rate limiting
+enabled = true
+
+# Maximum requests per window
+requests = 100
+
+# Time window in seconds
+window = 60
+
+# Burst capacity (additional requests allowed above limit)
+burst = 20
+
+# Security Headers
+[security.headers]
+# Enable security headers
+enabled = true
+
+# Content Security Policy
+# Restricts resources the browser can load
+csp = "default-src 'self'"
+
+# HTTP Strict Transport Security max age in seconds
+# Forces HTTPS for this duration
+hsts_max_age = 31536000
+
+# X-Frame-Options: DENY, SAMEORIGIN, ALLOW-FROM uri
+# Prevents clickjacking attacks
+x_frame_options = "DENY"
+
+# X-Content-Type-Options
+# Prevents MIME type sniffing
+x_content_type_options = "nosniff"
+
+# Referrer-Policy
+# Controls referrer information sent with requests
+referrer_policy = "strict-origin-when-cross-origin"
+
+# -----------------------------------------------------------------------------
+# Resilience Configuration
+# -----------------------------------------------------------------------------
+
+# Circuit Breaker
+[resilience.circuit_breaker]
+# Enable circuit breaker
+enabled = true
+
+# Number of failures before opening circuit
+threshold = 5
+
+# Time to wait before attempting to close circuit (seconds)
+timeout = 60
+
+# Number of successes needed to close circuit
+success_threshold = 2
+
+# Retry Policy
+[resilience.retry]
+# Enable automatic retries
+enabled = true
+
+# Maximum retry attempts
+max_attempts = 3
+
+# Backoff strategy: exponential, linear, constant
+backoff = "exponential"
+
+# Initial delay before first retry (milliseconds)
+initial_delay = 100
+
+# Maximum delay between retries (milliseconds)
+max_delay = 10000
+
+# Backoff multiplier (for exponential backoff)
+# delay = initial_delay * (multiplier ^ attempt)
+multiplier = 2.0
+
+# -----------------------------------------------------------------------------
+# Observability Configuration
+# -----------------------------------------------------------------------------
+[observability]
+# Log level: trace, debug, info, warn, error
+log_level = "info"
+
+# Log format: json, pretty
+# Use json for production (machine-readable)
+# Use pretty for development (human-readable)
+log_format = "pretty"
+
+# Enable distributed tracing
+tracing_enabled = true
+
+# Trace sampler: always, never, probabilistic
+# - always: Sample all traces (use in development)
+# - never: Disable tracing
+# - probabilistic: Sample based on sampling rate
+trace_sampler = "always"
+
+# Trace sampling rate (0.0 - 1.0)
+# Only used when trace_sampler = "probabilistic"
+# 1.0 = 100% of traces, 0.1 = 10% of traces
+trace_sampling_rate = 1.0
+
+# Tracing exporter: jaeger, zipkin, otlp
+tracing_exporter = "otlp"
+
+# OpenTelemetry Protocol (OTLP) endpoint
+otlp_endpoint = "http://localhost:4317"
+
+# Service name for traces and logs
+service_name = "lighter-auth"
+
+# Service version for traces and logs
+service_version = "0.1.0"
+
+# Service instance ID (unique identifier for this instance)
+# Auto-generated if empty
+service_instance_id = "lighter-auth-1"
+
+# -----------------------------------------------------------------------------
+# Health Check Configuration
+# -----------------------------------------------------------------------------
+[health]
+# Health check endpoint path
+endpoint = "/health"
+
+# Readiness probe endpoint path
+readiness_endpoint = "/ready"
+
+# Enable liveness probes (checks if service is running)
+liveness_enabled = true
+
+# Enable readiness probes (checks if service can accept traffic)
+readiness_enabled = true
+
+# Database health check timeout in seconds
+db_check_timeout = 5
+
+# Cache health check timeout in seconds
+cache_check_timeout = 2
+
+# -----------------------------------------------------------------------------
+# API Configuration
+# -----------------------------------------------------------------------------
+[api]
+# API version prefix
+version = "v1"
+
+# Enable Swagger/OpenAPI documentation
+swagger_enabled = true
+
+# Swagger UI path
+swagger_path = "/docs"

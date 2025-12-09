@@ -3,10 +3,12 @@ use anyhow::Context;
 use lighter_common::prelude::*;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
+use crate::config::auth::AuthConfig;
 use crate::entities::v1::users::Model;
 use crate::entities::v1::{permissions, roles};
 use crate::requests::v1::user::UserStoreRequest;
 use crate::responses::v1::user::complete::UserWithPermissionAndRole;
+use crate::security::PasswordHasher;
 
 #[::tracing::instrument(skip(db, request), fields(email = %request.email, username = %request.username))]
 pub async fn store(
@@ -75,9 +77,19 @@ pub async fn store(
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
+    // Create default AuthConfig for password hashing
+    let default_config = AuthConfig::default();
+
+    ::tracing::debug!("Creating password hasher with Argon2id");
+    let hasher = PasswordHasher::from_config(&default_config)
+        .map_err(|e| anyhow::anyhow!("Failed to create password hasher: {}", e))?;
+
     let id = Uuid::new_v4();
-    let hash = Hash::make(id, &password);
-    let password = hash.to_string();
+
+    ::tracing::debug!(user_id = %id, "Hashing password with Argon2id");
+    let password = hasher.hash(&password)
+        .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?;
+
     let model = Model {
         id,
         name,

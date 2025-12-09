@@ -250,11 +250,11 @@ impl Model {
     pub async fn update_password(
         &self,
         db: &DatabaseConnection,
-        password: Hash,
+        password: impl Into<String>,
     ) -> Result<Self, DbErr> {
         let mut model = ActiveModel::from(self.clone());
 
-        model.password = Set(password.to_string());
+        model.password = Set(password.into());
         model.updated_at = Set(now());
         model.update(db).await
     }

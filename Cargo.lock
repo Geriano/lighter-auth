@@ -1988,7 +1988,10 @@ dependencies = [
  "metrics 0.24.3",
  "metrics-exporter-prometheus 0.17.2",
  "num_cpus",
+ "once_cell",
+ "rand 0.8.5",
  "redis",
+ "regex",
  "sea-orm",
  "serde",
  "serde_json",
@@ -2004,7 +2007,9 @@ dependencies = [
 name = "lighter-auth-migration"
 version = "0.1.0"
 dependencies = [
+ "argon2",
  "lighter-common",
+ "rand 0.8.5",
  "sea-orm-migration",
  "tokio",
 ]
