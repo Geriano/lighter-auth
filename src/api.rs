@@ -69,8 +69,9 @@ use crate::{controllers, requests, responses};
         responses::v1::role::RolePaginationRequest,
         responses::v1::role::RolePaginationResponse,
 
+        controllers::health::LivenessResponse,
+        controllers::health::ReadinessResponse,
         controllers::health::HealthResponse,
-        controllers::health::DatabaseHealthStatus,
     )),
 )]
 pub struct Definition;
