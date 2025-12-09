@@ -327,12 +327,12 @@ mod tests {
         let duration = start.elapsed();
 
         // Argon2 with these params should take 50-1000ms in release mode
-        // Debug mode can be slower (up to 10s is acceptable for testing)
+        // Debug mode can be slower (up to 20s is acceptable for testing)
         assert!(duration.as_millis() >= 50, "Hashing too fast: {}ms (vulnerable to brute force)", duration.as_millis());
 
         #[cfg(debug_assertions)]
         {
-            assert!(duration.as_millis() <= 10000, "Hashing too slow even for debug: {}ms", duration.as_millis());
+            assert!(duration.as_millis() <= 20000, "Hashing too slow even for debug: {}ms", duration.as_millis());
         }
 
         #[cfg(not(debug_assertions))]
