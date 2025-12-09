@@ -44,12 +44,12 @@ lighter-auth-migration = { path = "migration" }
 # lighter-common = { git = "https://github.com/Geriano/lighter-common" }
 lighter-common = { path = "../common" }
 
-actix = "0.13.1"
-actix-cors = "0.6.5"
-actix-web = { version = "4.4.1", features = ["rustls-0_21"] }
-awc = "3.4.0"
-sea-orm = { version = "0.12.12", features = ["runtime-actix"] }
-serde = { version = "1.0.196", features = ["derive"] }
-serde_json = "1.0.113"
-utoipa = { version = "4.2.0", features = ["actix_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { version = "6.0.0", features = ["actix-web"] }
+actix = "0.13.5"
+actix-cors = "0.7.1"
+actix-web = { version = "4.12.1", features = ["rustls-0_23"] }
+awc = "3.8.1"
+sea-orm = { version = "1.1.19", features = ["runtime-tokio-rustls"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+utoipa = { version = "5.4.0", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
