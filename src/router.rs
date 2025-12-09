@@ -35,6 +35,12 @@ pub fn route(app: &mut ServiceConfig) {
     app.service(controllers::v1::auth::authenticated);
     app.service(controllers::v1::auth::logout);
 
+    // Health check endpoints
+    app.service(controllers::health::health);
+    app.service(controllers::health::health_db);
+    app.service(controllers::health::ready);
+    app.service(controllers::health::live);
+
     // Metrics endpoint
     app.service(controllers::metrics::metrics);
 

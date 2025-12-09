@@ -7,6 +7,7 @@ pub mod api;
 pub mod cache;
 pub mod config;
 pub mod controllers;
+pub mod database;
 pub mod entities;
 pub mod metrics;
 pub mod middlewares;
@@ -28,7 +29,9 @@ use actix_web::{
     App, HttpServer,
 };
 use lighter_common::prelude::*;
+use lighter_common::database as common_database;
 
+use database::DatabasePool;
 use security::SecurityHeadersMiddleware;
 
 #[actix::main]
@@ -47,13 +50,21 @@ async fn main() -> Result<(), Error> {
     );
 
     // Initialize database with config
-    let database = database::from_config(&app_config.database)
+    let database_connection = common_database::from_config(&app_config.database)
         .await
         .expect("Failed to connect to database");
 
     ::tracing::info!(
         database_url = %app_config.database.url,
         "Database connection established"
+    );
+
+    // Wrap database connection with circuit breaker protection
+    let database = DatabasePool::new(database_connection, app_config.resilience.clone());
+
+    ::tracing::info!(
+        circuit_breaker_enabled = %database.is_circuit_breaker_enabled(),
+        "Database pool with circuit breaker initialized"
     );
 
     // Extract config for server setup

@@ -10,6 +10,7 @@ use crate::{controllers, requests, responses};
         (name = "User"),
         (name = "Permission"),
         (name = "Role"),
+        (name = "Health"),
     ),
     modifiers(&Builtin, &Authentication),
     paths(
@@ -35,6 +36,11 @@ use crate::{controllers, requests, responses};
         controllers::v1::auth::login,
         controllers::v1::auth::authenticated,
         controllers::v1::auth::logout,
+
+        controllers::health::health,
+        controllers::health::health_db,
+        controllers::health::ready,
+        controllers::health::live,
     ),
     components(schemas(
         requests::v1::auth::LoginRequest,
@@ -62,6 +68,9 @@ use crate::{controllers, requests, responses};
         responses::v1::role::RolePaginationOrder,
         responses::v1::role::RolePaginationRequest,
         responses::v1::role::RolePaginationResponse,
+
+        controllers::health::HealthResponse,
+        controllers::health::DatabaseHealthStatus,
     )),
 )]
 pub struct Definition;
