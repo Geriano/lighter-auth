@@ -1,37 +1,24 @@
 use sea_orm_migration::prelude::*;
 
 use crate::{
-    m20230902_024928_v1_create_permissions::{Permission, TABLE as PERMISSION_TABLE},
-    m20230902_025106_v1_create_roles::{Role, TABLE as ROLE_TABLE},
+    m20230902_024928_v1_create_permissions::Permission, m20230902_025106_v1_create_roles::Role,
 };
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
-#[cfg(feature = "postgres")]
-pub const TABLE: (PermissionRole, PermissionRole) = (PermissionRole::Schema, PermissionRole::Table);
-#[cfg(not(feature = "postgres"))]
-pub const TABLE: PermissionRole = PermissionRole::Table;
-
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        #[cfg(any(feature = "postgres", feature = "sqlite"))]
         manager
             .create_table(
                 Table::create()
-                    .table(TABLE)
+                    .table(PermissionRole::Table)
                     .col(
                         ColumnDef::new(PermissionRole::Id)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .extra(
-                                #[cfg(feature = "postgres")]
-                                "DEFAULT uuid_generate_v4()",
-                                #[cfg(feature = "sqlite")]
-                                "DEFAULT (hex(randomblob(16)))",
-                            ),
+                            .primary_key(),
                     )
                     .col(
                         ColumnDef::new(PermissionRole::PermissionId)
@@ -41,14 +28,14 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(PermissionRole::RoleId).uuid().not_null())
                     .foreign_key(
                         ForeignKey::create()
-                            .from(TABLE, PermissionRole::PermissionId)
-                            .to(PERMISSION_TABLE, Permission::Id)
+                            .from(PermissionRole::Table, PermissionRole::PermissionId)
+                            .to(Permission::Table, Permission::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .from(TABLE, PermissionRole::RoleId)
-                            .to(ROLE_TABLE, Role::Id)
+                            .from(PermissionRole::Table, PermissionRole::RoleId)
+                            .to(Role::Table, Role::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .take(),
@@ -58,7 +45,7 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .table(TABLE)
+                    .table(PermissionRole::Table)
                     .col(PermissionRole::PermissionId)
                     .name("idx_permission_role_permission_id")
                     .take(),
@@ -68,7 +55,7 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .table(TABLE)
+                    .table(PermissionRole::Table)
                     .col(PermissionRole::RoleId)
                     .name("idx_permission_role_role_id")
                     .take(),
@@ -80,16 +67,18 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().if_exists().table(TABLE).take())
+            .drop_table(
+                Table::drop()
+                    .if_exists()
+                    .table(PermissionRole::Table)
+                    .take(),
+            )
             .await
     }
 }
 
 #[derive(DeriveIden)]
 pub enum PermissionRole {
-    #[cfg(feature = "postgres")]
-    #[sea_orm(iden = "v1")]
-    Schema,
     #[sea_orm(iden = "permission_role")]
     Table,
     Id,

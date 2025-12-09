@@ -11,11 +11,17 @@ pub struct Authenticated {
     users: Arc<Mutex<BTreeMap<Uuid, Auth>>>,
 }
 
-impl Authenticated {
-    pub fn new() -> Self {
+impl Default for Authenticated {
+    fn default() -> Self {
         Self {
             users: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+}
+
+impl Authenticated {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub async fn get(&self, id: Uuid) -> Option<Auth> {

@@ -53,13 +53,13 @@ macro_rules! app {
 #[macro_export]
 macro_rules! service {
     () => {{
-        let db = crate::testing::instance::database().await.unwrap();
+        let db = $crate::testing::instance::database().await.unwrap();
         let app = ::actix_web::App::new()
             .app_data(::actix_web::web::Data::new(db.clone()))
             .app_data(::actix_web::web::Data::new(
-                crate::middlewares::v1::auth::Authenticated::new(),
+                $crate::middlewares::v1::auth::Authenticated::new(),
             ))
-            .configure(crate::router::route);
+            .configure($crate::router::route);
 
         let service = ::actix_web::test::init_service(app).await;
 

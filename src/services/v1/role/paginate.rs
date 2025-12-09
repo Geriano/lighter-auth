@@ -34,7 +34,7 @@ pub async fn paginate(
                 RolePaginationOrder::Name => Column::Name,
                 RolePaginationOrder::CreatedAt => Column::Code,
             },
-            request.sort().into(),
+            request.sort(),
         );
 
     let roles = query.all(db).await?;

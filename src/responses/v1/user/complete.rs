@@ -48,14 +48,14 @@ where
     }
 }
 
-impl Into<User> for UserWithPermissionAndRole {
-    fn into(self) -> User {
+impl From<UserWithPermissionAndRole> for User {
+    fn from(val: UserWithPermissionAndRole) -> Self {
         User {
-            id: self.id,
-            name: self.name,
-            email: self.email,
-            email_verified_at: self.email_verified_at,
-            username: self.username,
+            id: val.id,
+            name: val.name,
+            email: val.email,
+            email_verified_at: val.email_verified_at,
+            username: val.username,
         }
     }
 }

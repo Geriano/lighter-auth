@@ -1,6 +1,6 @@
 use lighter_common::prelude::*;
-use sea_orm::prelude::*;
 use sea_orm::QuerySelect;
+use sea_orm::prelude::*;
 
 use crate::entities::v1::users::{ActiveModel, Column, Entity, Model};
 use crate::entities::v1::{
@@ -166,6 +166,7 @@ impl Model {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_general_information<Name, Email, Username>(
         &self,
         db: &DatabaseConnection,
@@ -184,7 +185,6 @@ impl Model {
     {
         let name = name.to_string();
         let email = email.to_string();
-        let email_verified_at = email_verified_at;
         let username = username.to_string();
 
         db.transaction(|db| {
@@ -315,26 +315,26 @@ impl Model {
     }
 }
 
-impl Into<User> for Model {
-    fn into(self) -> User {
+impl From<Model> for User {
+    fn from(val: Model) -> Self {
         User {
-            id: self.id,
-            name: self.name,
-            email: self.email,
-            email_verified_at: self.email_verified_at,
-            username: self.username,
+            id: val.id,
+            name: val.name,
+            email: val.email,
+            email_verified_at: val.email_verified_at,
+            username: val.username,
         }
     }
 }
 
-impl Into<User> for &Model {
-    fn into(self) -> User {
+impl From<&Model> for User {
+    fn from(val: &Model) -> Self {
         User {
-            id: self.id,
-            name: self.name.clone(),
-            email: self.email.clone(),
-            email_verified_at: self.email_verified_at,
-            username: self.username.clone(),
+            id: val.id,
+            name: val.name.clone(),
+            email: val.email.clone(),
+            email_verified_at: val.email_verified_at,
+            username: val.username.clone(),
         }
     }
 }

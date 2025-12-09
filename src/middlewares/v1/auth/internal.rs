@@ -2,8 +2,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
-use actix_web::dev::Payload;
 use actix_web::FromRequest;
+use actix_web::dev::Payload;
 use lighter_common::{base58, prelude::*};
 use sea_orm::EntityTrait;
 use serde::{Deserialize, Serialize};
@@ -136,12 +136,12 @@ impl FromRequest for Auth {
                 }
             };
 
-            if let Some(expired_at) = token.expired_at {
-                if expired_at < now() {
-                    tracing::error!("Token expired");
+            if let Some(expired_at) = token.expired_at
+                && expired_at < now()
+            {
+                tracing::error!("Token expired");
 
-                    return Err(Unauthorized::new("Token expired").into());
-                }
+                return Err(Unauthorized::new("Token expired").into());
             }
 
             let user = user.first().cloned().unwrap();

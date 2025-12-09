@@ -3,8 +3,8 @@ use std::time::Duration;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::users::Model;
-use crate::middlewares::v1::auth::internal::Auth;
 use crate::middlewares::v1::auth::Authenticated as Cache;
+use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::auth::LoginRequest;
 use crate::responses::v1::auth::Authenticated;
 
@@ -22,18 +22,14 @@ pub async fn login(
 
     if email_or_username.is_empty() {
         validation.add("email_or_username", "Email or username field is required");
-    } else {
-        if !Model::email_or_username_exists(db, &email_or_username).await {
-            validation.add("email_or_username", "Email or username not found");
-        }
+    } else if !Model::email_or_username_exists(db, &email_or_username).await {
+        validation.add("email_or_username", "Email or username not found");
     }
 
     if password.is_empty() {
         validation.add("password", "Password field is required");
-    } else {
-        if password.len() < 8 {
-            validation.add("password", "Password must be at least 8 characters");
-        }
+    } else if password.len() < 8 {
+        validation.add("password", "Password must be at least 8 characters");
     }
 
     if !validation.is_empty() {

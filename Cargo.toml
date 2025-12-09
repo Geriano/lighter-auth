@@ -1,22 +1,29 @@
 [package]
 name = "lighter-auth"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.90"
 
 [workspace]
-resolver = "2"
-members = [
-  "migration",
-]
+resolver = "3"
+members = ["migration"]
 
 [profile.release]
-strip = true  # Automatically strip symbols from the binary.
-opt-level = "z"  # Optimize for size.
+strip = true    # Automatically strip symbols from the binary.
+opt-level = "z" # Optimize for size.
 
 [features]
 default = []
-postgres = ["lighter-common/postgres", "lighter-auth-migration/postgres", "sea-orm/sqlx-postgres"]
-sqlite = ["lighter-common/sqlite", "lighter-auth-migration/sqlite", "sea-orm/sqlx-sqlite"]
+postgres = [
+  "lighter-common/postgres",
+  "lighter-auth-migration/postgres",
+  "sea-orm/sqlx-postgres",
+]
+sqlite = [
+  "lighter-common/sqlite",
+  "lighter-auth-migration/sqlite",
+  "sea-orm/sqlx-sqlite",
+]
 
 [dependencies]
 lighter-common = { workspace = true }
@@ -34,8 +41,8 @@ utoipa-swagger-ui = { workspace = true }
 
 [workspace.dependencies]
 lighter-auth-migration = { path = "migration" }
-lighter-common = { git = "https://github.com/Geriano/lighter-common" }
-# lighter-common = { path = "../common" }
+# lighter-common = { git = "https://github.com/Geriano/lighter-common" }
+lighter-common = { path = "../common" }
 
 actix = "0.13.1"
 actix-cors = "0.6.5"

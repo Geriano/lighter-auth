@@ -1,6 +1,6 @@
 use lighter_common::prelude::*;
-use sea_orm::prelude::*;
 use sea_orm::ColumnTrait;
+use sea_orm::prelude::*;
 
 use crate::entities::v1::users::Model;
 use crate::entities::v1::{permissions, roles};

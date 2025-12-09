@@ -1,7 +1,7 @@
 #[test]
 pub async fn show() -> Result<(), lighter_common::prelude::Error> {
     use actix_web::body::MessageBody;
-    use actix_web::test::{call_service, TestRequest};
+    use actix_web::test::{TestRequest, call_service};
     use lighter_common::prelude::*;
     use sea_orm::EntityTrait;
 

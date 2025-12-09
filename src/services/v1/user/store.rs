@@ -33,18 +33,14 @@ pub async fn store(
 
     if email.is_empty() {
         validation.add("email", "Email is required.");
-    } else {
-        if Model::email_exists(db, &email).await {
-            validation.add("email", "Email already exists.");
-        }
+    } else if Model::email_exists(db, &email).await {
+        validation.add("email", "Email already exists.");
     }
 
     if username.is_empty() {
         validation.add("username", "Username is required.");
-    } else {
-        if Model::username_exists(db, &username).await {
-            validation.add("username", "Username already exists.");
-        }
+    } else if Model::username_exists(db, &username).await {
+        validation.add("username", "Username already exists.");
     }
 
     if password.is_empty() {

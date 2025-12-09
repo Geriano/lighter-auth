@@ -1,7 +1,7 @@
 #[test]
 pub async fn paginate() -> Result<(), lighter_common::prelude::Error> {
     use actix_web::body::MessageBody;
-    use actix_web::test::{call_service, TestRequest};
+    use actix_web::test::{TestRequest, call_service};
     use lighter_common::prelude::*;
 
     use crate::responses::v1::user::simple::UserPaginationResponse;

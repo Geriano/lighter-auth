@@ -1,7 +1,7 @@
 #[test]
 pub async fn store() -> Result<(), lighter_common::prelude::Error> {
     use actix_web::http::Method;
-    use actix_web::test::{call_service, TestRequest};
+    use actix_web::test::{TestRequest, call_service};
     use lighter_common::prelude::*;
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 

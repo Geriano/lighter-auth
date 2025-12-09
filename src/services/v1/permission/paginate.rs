@@ -34,7 +34,7 @@ pub async fn paginate(
                 PermissionPaginationOrder::Name => Column::Name,
                 PermissionPaginationOrder::CreatedAt => Column::Code,
             },
-            request.sort().into(),
+            request.sort(),
         );
 
     let permissions = query.all(db).await?;

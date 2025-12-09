@@ -54,22 +54,22 @@ impl Model {
     }
 }
 
-impl Into<Permission> for Model {
-    fn into(self) -> Permission {
+impl From<Model> for Permission {
+    fn from(val: Model) -> Self {
         Permission {
-            id: self.id,
-            code: self.code,
-            name: self.name,
+            id: val.id,
+            code: val.code,
+            name: val.name,
         }
     }
 }
 
-impl Into<Permission> for &Model {
-    fn into(self) -> Permission {
+impl From<&Model> for Permission {
+    fn from(val: &Model) -> Self {
         Permission {
-            id: self.id,
-            code: self.code.clone(),
-            name: self.name.clone(),
+            id: val.id,
+            code: val.code.clone(),
+            name: val.name.clone(),
         }
     }
 }

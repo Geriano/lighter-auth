@@ -54,22 +54,22 @@ impl Model {
     }
 }
 
-impl Into<Role> for Model {
-    fn into(self) -> Role {
+impl From<Model> for Role {
+    fn from(val: Model) -> Self {
         Role {
-            id: self.id,
-            code: self.code,
-            name: self.name,
+            id: val.id,
+            code: val.code,
+            name: val.name,
         }
     }
 }
 
-impl Into<Role> for &Model {
-    fn into(self) -> Role {
+impl From<&Model> for Role {
+    fn from(val: &Model) -> Self {
         Role {
-            id: self.id,
-            code: self.code.clone(),
-            name: self.name.clone(),
+            id: val.id,
+            code: val.code.clone(),
+            name: val.name.clone(),
         }
     }
 }

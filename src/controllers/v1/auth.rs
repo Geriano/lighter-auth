@@ -1,7 +1,7 @@
 use lighter_common::prelude::*;
 
-use crate::middlewares::v1::auth::internal::Auth;
 use crate::middlewares::v1::auth::Authenticated as Cache;
+use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::auth::LoginRequest;
 use crate::responses::v1::auth::Authenticated;
 use crate::services;

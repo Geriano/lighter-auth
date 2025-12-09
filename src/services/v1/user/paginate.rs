@@ -37,7 +37,7 @@ pub async fn paginate(
                 UserPaginationOrder::EmailVerifiedAt => Column::EmailVerifiedAt,
                 UserPaginationOrder::CreatedAt => Column::CreatedAt,
             },
-            request.sort().into(),
+            request.sort(),
         );
 
     let users = query.all(db).await?;

@@ -2,11 +2,10 @@ use lighter_common::prelude::*;
 use sea_orm_migration::prelude::*;
 
 use crate::{
-    m20230902_024725_v1_create_users::{User, TABLE as USER_TABLE},
-    m20230902_024928_v1_create_permissions::{Permission, TABLE as PERMISSION_TABLE},
-    m20230902_025106_v1_create_roles::{Role, TABLE as ROLE_TABLE},
-    m20230902_025247_v1_create_permission_role::{PermissionRole, TABLE as PERMISSION_ROLE_TABLE},
-    m20230902_025255_v1_create_role_user::{RoleUser, TABLE as ROLE_USER_TABLE},
+    m20230902_024725_v1_create_users::User, m20230902_024928_v1_create_permissions::Permission,
+    m20230902_025106_v1_create_roles::Role,
+    m20230902_025247_v1_create_permission_role::PermissionRole,
+    m20230902_025255_v1_create_role_user::RoleUser,
 };
 
 #[derive(DeriveMigrationName)]
@@ -24,13 +23,15 @@ impl MigrationTrait for Migration {
         manager
             .exec_stmt(
                 Query::insert()
-                    .into_table(USER_TABLE)
+                    .into_table(User::Table)
                     .columns(vec![
                         User::Id,
                         User::Name,
                         User::Email,
                         User::Username,
                         User::Password,
+                        User::CreatedAt,
+                        User::UpdatedAt,
                     ])
                     .values_panic(vec![
                         user_id.into(),
@@ -38,6 +39,8 @@ impl MigrationTrait for Migration {
                         "root@local".into(),
                         "root".into(),
                         Hash::make(user_id, "password").to_string().into(),
+                        chrono::Utc::now().naive_utc().into(),
+                        chrono::Utc::now().naive_utc().into(),
                     ])
                     .to_owned(),
             )
@@ -45,7 +48,7 @@ impl MigrationTrait for Migration {
 
         let mut permissions = vec![];
         let mut query = Query::insert()
-            .into_table(PERMISSION_TABLE)
+            .into_table(Permission::Table)
             .columns(vec![Permission::Id, Permission::Code, Permission::Name])
             .to_owned();
 
@@ -67,7 +70,7 @@ impl MigrationTrait for Migration {
 
         let mut roles = vec![];
         let mut query = Query::insert()
-            .into_table(ROLE_TABLE)
+            .into_table(Role::Table)
             .columns(vec![Role::Id, Role::Code, Role::Name])
             .to_owned();
 
@@ -86,11 +89,11 @@ impl MigrationTrait for Migration {
         manager.exec_stmt(query).await?;
 
         let mut role_user = Query::insert()
-            .into_table(ROLE_USER_TABLE)
+            .into_table(RoleUser::Table)
             .columns(vec![RoleUser::Id, RoleUser::UserId, RoleUser::RoleId])
             .to_owned();
         let mut permission_role = Query::insert()
-            .into_table(PERMISSION_ROLE_TABLE)
+            .into_table(PermissionRole::Table)
             .columns(vec![
                 PermissionRole::Id,
                 PermissionRole::PermissionId,
@@ -120,7 +123,7 @@ impl MigrationTrait for Migration {
         manager
             .exec_stmt(
                 Query::delete()
-                    .from_table(USER_TABLE)
+                    .from_table(User::Table)
                     .and_where(Expr::col(User::Username).eq("root"))
                     .to_owned(),
             )
@@ -134,7 +137,7 @@ impl MigrationTrait for Migration {
                 manager
                     .exec_stmt(
                         Query::delete()
-                            .from_table(PERMISSION_TABLE)
+                            .from_table(Permission::Table)
                             .and_where(Expr::col(Permission::Code).eq(code))
                             .to_owned(),
                     )
@@ -148,7 +151,7 @@ impl MigrationTrait for Migration {
             manager
                 .exec_stmt(
                     Query::delete()
-                        .from_table(ROLE_TABLE)
+                        .from_table(Role::Table)
                         .and_where(Expr::col(Role::Code).eq(code))
                         .to_owned(),
                 )

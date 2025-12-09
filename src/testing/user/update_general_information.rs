@@ -2,7 +2,7 @@
 pub async fn update_general_information() -> Result<(), lighter_common::prelude::Error> {
     use actix_web::body::MessageBody;
     use actix_web::http::Method;
-    use actix_web::test::{call_service, TestRequest};
+    use actix_web::test::{TestRequest, call_service};
     use lighter_common::prelude::*;
     use sea_orm::EntityTrait;
 
