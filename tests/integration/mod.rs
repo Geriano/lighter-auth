@@ -4,3 +4,4 @@
 //! the complete authentication flow and API endpoints.
 
 pub mod auth_flow;
+pub mod security_headers_test;
