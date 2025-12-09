@@ -4,10 +4,6 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
 
-[lib]
-name = "lighter_auth"
-path = "src/main.rs"
-
 [workspace]
 resolver = "3"
 members = ["migration"]
