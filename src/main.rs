@@ -12,6 +12,7 @@ pub mod metrics;
 pub mod middlewares;
 pub mod models;
 pub mod requests;
+pub mod resilience;
 pub mod responses;
 pub mod router;
 pub mod security;
