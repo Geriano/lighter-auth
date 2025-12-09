@@ -17,7 +17,7 @@ pub async fn update_general_information() -> Result<(), lighter_common::prelude:
     let roles = user.roles(&db).await?;
     let payload = UserUpdateGeneralInformationRequest {
         name: "unit test".to_string(),
-        email: user.email.clone(),
+        email: "root@local.test".to_string(), // Use valid email format with TLD
         username: user.username.clone(),
         profile_photo_id: user.profile_photo_id,
         permissions: permissions.iter().map(|p| p.id).collect(),

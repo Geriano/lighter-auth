@@ -11,16 +11,16 @@ pub async fn update(
     id: Uuid,
     request: RoleRequest,
 ) -> anyhow::Result<Role> {
-    let mut validation = Validation::new();
-    let name = request.name.trim().to_lowercase();
-
-    if name.is_empty() {
-        validation.add("name", "Name is required");
-    }
-
-    if !validation.is_empty() {
+    // Validate request DTO
+    if let Err(errors) = request.validate() {
+        let mut validation = Validation::new();
+        for error in errors {
+            validation.add("validation", error);
+        }
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
+
+    let name = request.name.trim().to_lowercase();
 
     let role = Model::find_by_id(db, id)
         .await

@@ -18,20 +18,22 @@ pub async fn login(
     cached: &Cache,
     request: LoginRequest,
 ) -> anyhow::Result<Authenticated> {
+    // Validate request DTO
+    if let Err(errors) = request.validate() {
+        let mut validation = Validation::new();
+        for error in errors {
+            validation.add("validation", error);
+        }
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
+    }
+
     let mut validation = Validation::new();
     let email_or_username = request.email_or_username.trim().to_lowercase();
     let password = request.password;
 
-    if email_or_username.is_empty() {
-        validation.add("email_or_username", "Email or username field is required");
-    } else if !Model::email_or_username_exists(db, &email_or_username).await {
+    // Check if email or username exists in database
+    if !Model::email_or_username_exists(db, &email_or_username).await {
         validation.add("email_or_username", "Email or username not found");
-    }
-
-    if password.is_empty() {
-        validation.add("password", "Password field is required");
-    } else if password.len() < 8 {
-        validation.add("password", "Password must be at least 8 characters");
     }
 
     if !validation.is_empty() {

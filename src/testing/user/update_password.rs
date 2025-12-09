@@ -16,7 +16,7 @@ pub async fn update_password() -> Result<(), lighter_common::prelude::Error> {
     let id = Uuid::from_u128(0);
     let user = users::Entity::find_by_id(id).one(&db).await?.unwrap();
     let password = user.password.clone();
-    let new_password = "new password".to_string();
+    let new_password = "NewSecureP@ss456".to_string();
     let request = TestRequest::default()
         .insert_header(("Authorization", format!("Bearer {}", token(&db).await)))
         .insert_header(("Content-Type", "application/json"))

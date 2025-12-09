@@ -13,12 +13,20 @@ pub async fn store(
     db: &DatabaseConnection,
     request: UserStoreRequest,
 ) -> anyhow::Result<Json<UserWithPermissionAndRole>> {
+    // Validate request DTO
+    if let Err(errors) = request.validate() {
+        let mut validation = Validation::new();
+        for error in errors {
+            validation.add("validation", error);
+        }
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
+    }
+
     let mut validation = Validation::new();
     let name = request.name.trim().to_lowercase();
     let email = request.email.trim().to_lowercase();
     let username = request.username.trim().to_lowercase();
     let password = request.password;
-    let password_confirmation = request.password_confirmation;
     let profile_photo_id = request.profile_photo_id.map(|id| id.trim().to_string());
     let permissions = permissions::Entity::find()
         .filter(permissions::Column::Id.is_in(request.permissions.clone()))
@@ -31,33 +39,14 @@ pub async fn store(
         .await
         .context("Failed to query roles from database")?;
 
-    if name.is_empty() {
-        validation.add("name", "Name is required.");
-    }
-
-    if email.is_empty() {
-        validation.add("email", "Email is required.");
-    } else if Model::email_exists(db, &email).await {
+    // Check if email already exists
+    if Model::email_exists(db, &email).await {
         validation.add("email", "Email already exists.");
     }
 
-    if username.is_empty() {
-        validation.add("username", "Username is required.");
-    } else if Model::username_exists(db, &username).await {
+    // Check if username already exists
+    if Model::username_exists(db, &username).await {
         validation.add("username", "Username already exists.");
-    }
-
-    if password.is_empty() {
-        validation.add("password", "Password is required.");
-    } else if password.len() < 8 {
-        validation.add("password", "Password must be at least 8 characters.");
-    }
-
-    if password != password_confirmation {
-        validation.add(
-            "password_confirmation",
-            "Password confirmation does not match.",
-        );
     }
 
     if !request.permissions.is_empty() {

@@ -11,10 +11,10 @@ pub async fn store() -> Result<(), lighter_common::prelude::Error> {
 
     let payload = UserStoreRequest {
         name: "John Doe".to_string(),
-        email: "john.doe@local".to_string(),
+        email: "john.doe@local.test".to_string(),
         username: "john_doe".to_string(),
-        password: "password".to_string(),
-        password_confirmation: "password".to_string(),
+        password: "SecureP@ss123".to_string(),
+        password_confirmation: "SecureP@ss123".to_string(),
         profile_photo_id: None,
         permissions: Vec::new(),
         roles: Vec::new(),

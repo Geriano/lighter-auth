@@ -10,36 +10,18 @@ pub async fn update(
     id: Uuid,
     request: UserUpdatePasswordRequest,
 ) -> anyhow::Result<Success> {
+    // Validate request DTO
+    if let Err(errors) = request.validate() {
+        let mut validation = Validation::new();
+        for error in errors {
+            validation.add("validation", error);
+        }
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
+    }
+
     let mut validation = Validation::new();
     let current_password = request.current_password;
     let new_password = request.new_password;
-    let password_confirmation = request.password_confirmation;
-
-    if current_password.is_empty() {
-        validation.add("current_password", "Current password is required.");
-    }
-
-    if new_password.is_empty() {
-        validation.add("new_password", "New password is required.");
-    }
-
-    if password_confirmation.is_empty() {
-        validation.add(
-            "password_confirmation",
-            "Password confirmation is required.",
-        );
-    }
-
-    if new_password != password_confirmation {
-        validation.add(
-            "password_confirmation",
-            "Password confirmation does not match.",
-        );
-    }
-
-    if !validation.is_empty() {
-        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
-    }
 
     let user = Model::find_by_id(db, id)
         .await

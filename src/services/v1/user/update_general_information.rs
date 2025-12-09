@@ -13,6 +13,15 @@ pub async fn update(
     id: Uuid,
     request: UserUpdateGeneralInformationRequest,
 ) -> anyhow::Result<Success> {
+    // Validate request DTO
+    if let Err(errors) = request.validate() {
+        let mut validation = Validation::new();
+        for error in errors {
+            validation.add("validation", error);
+        }
+        return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
+    }
+
     let mut validation = Validation::new();
     let name = request.name.trim().to_lowercase();
     let email = request.email.trim().to_lowercase();
@@ -28,18 +37,6 @@ pub async fn update(
         .all(db)
         .await
         .context("Failed to query roles from database")?;
-
-    if name.is_empty() {
-        validation.add("name", "Name is required.");
-    }
-
-    if email.is_empty() {
-        validation.add("email", "Email is required.");
-    }
-
-    if username.is_empty() {
-        validation.add("username", "Username is required.");
-    }
 
     if !request.permissions.is_empty() {
         for permission_id in &request.permissions {
