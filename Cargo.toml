@@ -48,6 +48,7 @@ redis = { workspace = true, optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { version = "0.1", features = ["attributes"] }
+async-trait = "0.1"
 
 [workspace.dependencies]
 lighter-auth-migration = { path = "migration" }

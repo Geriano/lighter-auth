@@ -4,6 +4,7 @@
 extern crate actix_web;
 
 pub mod api;
+pub mod cache;
 pub mod config;
 pub mod controllers;
 pub mod entities;
