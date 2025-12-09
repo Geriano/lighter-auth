@@ -14,6 +14,7 @@ pub mod models;
 pub mod requests;
 pub mod responses;
 pub mod router;
+pub mod security;
 pub mod services;
 
 pub mod testing;
