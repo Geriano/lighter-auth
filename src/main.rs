@@ -8,6 +8,7 @@ pub mod cache;
 pub mod config;
 pub mod controllers;
 pub mod entities;
+pub mod metrics;
 pub mod middlewares;
 pub mod models;
 pub mod requests;

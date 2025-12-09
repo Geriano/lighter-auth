@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
 
+[lib]
+name = "lighter_auth"
+path = "src/main.rs"
+
 [workspace]
 resolver = "3"
 members = ["migration"]
@@ -52,6 +56,8 @@ async-trait = "0.1"
 dashmap = { workspace = true }
 bincode = { workspace = true }
 num_cpus = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
 
 [workspace.dependencies]
 lighter-auth-migration = { path = "migration" }
@@ -90,6 +96,10 @@ thiserror = "1.0"
 
 # Tracing
 tracing = { version = "0.1", features = ["attributes"] }
+
+# Metrics
+metrics = "0.24"
+metrics-exporter-prometheus = "0.17"
 
 # Cache
 dashmap = "6.1"
