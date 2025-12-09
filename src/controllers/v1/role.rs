@@ -1,6 +1,5 @@
 use lighter_common::prelude::*;
 
-use crate::helpers::AnyhowResponder;
 use crate::requests::v1::role::RoleRequest;
 use crate::responses::v1::role::{Role, RolePaginationRequest, RolePaginationResponse};
 use crate::services;
@@ -20,8 +19,9 @@ use crate::services;
 pub async fn paginate(
     db: Data<DatabaseConnection>,
     QueryParam(request): QueryParam<RolePaginationRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::role::paginate::paginate(&db, request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::paginate::paginate(&db, request).await?;
+    Ok(Json(response))
 }
 
 /// Store new role
@@ -38,8 +38,9 @@ pub async fn paginate(
 pub async fn store(
     db: Data<DatabaseConnection>,
     Json(request): Json<RoleRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::role::store::store(&db, request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::store::store(&db, request).await?;
+    Ok(Json(response))
 }
 
 /// Show role by id
@@ -51,8 +52,9 @@ pub async fn store(
     responses(Role, BadRequest, Unauthorized, NotFound, InternalServerError,)
 )]
 #[get("/v1/role/{id}")]
-pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    AnyhowResponder(services::v1::role::show::show(&db, id.into_inner()).await)
+pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::show::show(&db, id.into_inner()).await?;
+    Ok(Json(response))
 }
 
 /// Update role by id
@@ -68,8 +70,9 @@ pub async fn update(
     db: Data<DatabaseConnection>,
     id: Path<Uuid>,
     Json(request): Json<RoleRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::role::update::update(&db, id.into_inner(), request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::update::update(&db, id.into_inner(), request).await?;
+    Ok(Json(response))
 }
 
 /// Delete role by id
@@ -81,6 +84,7 @@ pub async fn update(
     responses(Success, BadRequest, Unauthorized, NotFound, InternalServerError,)
 )]
 #[delete("/v1/role/{id}")]
-pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    AnyhowResponder(services::v1::role::delete::delete(&db, id.into_inner()).await)
+pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::delete::delete(&db, id.into_inner()).await?;
+    Ok(response)
 }

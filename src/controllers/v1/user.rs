@@ -1,6 +1,5 @@
 use lighter_common::prelude::*;
 
-use crate::helpers::AnyhowResponder;
 use crate::requests::v1::user::{
     UserStoreRequest, UserUpdateGeneralInformationRequest, UserUpdatePasswordRequest,
 };
@@ -24,8 +23,9 @@ use crate::services;
 pub async fn paginate(
     db: Data<DatabaseConnection>,
     QueryParam(request): QueryParam<UserPaginationRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::user::paginate::paginate(&db, request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::paginate::paginate(&db, request).await?;
+    Ok(Json(response))
 }
 
 /// Store new user
@@ -49,8 +49,9 @@ pub async fn paginate(
 pub async fn store(
     db: Data<DatabaseConnection>,
     Json(request): Json<UserStoreRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::user::store::store(&db, request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::store::store(&db, request).await?;
+    Ok(Json(response))
 }
 
 /// Find user by id
@@ -67,8 +68,9 @@ pub async fn store(
     ),
 )]
 #[get("/v1/user/{id}")]
-pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    AnyhowResponder(services::v1::user::show::show(&db, id.into_inner()).await)
+pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::show::show(&db, id.into_inner()).await?;
+    Ok(Json(response))
 }
 
 /// Update general information user by id
@@ -94,8 +96,9 @@ pub async fn update_general_information(
     db: Data<DatabaseConnection>,
     id: Path<Uuid>,
     Json(request): Json<UserUpdateGeneralInformationRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::user::update_general_information::update(&db, id.into_inner(), request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::update_general_information::update(&db, id.into_inner(), request).await?;
+    Ok(response)
 }
 
 /// Update user password by id
@@ -122,8 +125,9 @@ pub async fn update_password(
     db: Data<DatabaseConnection>,
     id: Path<Uuid>,
     Json(request): Json<UserUpdatePasswordRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::user::update_password::update(&db, id.into_inner(), request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::update_password::update(&db, id.into_inner(), request).await?;
+    Ok(response)
 }
 
 /// Delete user by id
@@ -140,6 +144,7 @@ pub async fn update_password(
     ),
 )]
 #[delete("/v1/user/{id}")]
-pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    AnyhowResponder(services::v1::user::delete::delete(&db, id.into_inner()).await)
+pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::delete::delete(&db, id.into_inner()).await?;
+    Ok(response)
 }

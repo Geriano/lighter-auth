@@ -1,6 +1,5 @@
 use lighter_common::prelude::*;
 
-use crate::helpers::AnyhowResponder;
 use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::permission::PermissionRequest;
 use crate::responses::v1::permission::{
@@ -25,8 +24,9 @@ pub async fn paginate(
     _: Auth,
     db: Data<DatabaseConnection>,
     QueryParam(request): QueryParam<PermissionPaginationRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::permission::paginate::paginate(&db, request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::permission::paginate::paginate(&db, request).await?;
+    Ok(Json(response))
 }
 
 /// Store new permission
@@ -43,8 +43,9 @@ pub async fn paginate(
 pub async fn store(
     db: Data<DatabaseConnection>,
     Json(request): Json<PermissionRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::permission::store::store(&db, request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::permission::store::store(&db, request).await?;
+    Ok(Json(response))
 }
 
 /// Show permission by id
@@ -56,8 +57,9 @@ pub async fn store(
     responses(Permission, BadRequest, Unauthorized, NotFound, InternalServerError,)
 )]
 #[get("/v1/permission/{id}")]
-pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    AnyhowResponder(services::v1::permission::show::show(&db, id.into_inner()).await)
+pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
+    let response = services::v1::permission::show::show(&db, id.into_inner()).await?;
+    Ok(Json(response))
 }
 
 /// Update permission by id
@@ -73,8 +75,9 @@ pub async fn update(
     db: Data<DatabaseConnection>,
     id: Path<Uuid>,
     Json(request): Json<PermissionRequest>,
-) -> impl Responder {
-    AnyhowResponder(services::v1::permission::update::update(&db, id.into_inner(), request).await)
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::permission::update::update(&db, id.into_inner(), request).await?;
+    Ok(Json(response))
 }
 
 /// Delete permission by id
@@ -86,6 +89,7 @@ pub async fn update(
     responses(Success, BadRequest, Unauthorized, NotFound, InternalServerError,)
 )]
 #[delete("/v1/permission/{id}")]
-pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> impl Responder {
-    AnyhowResponder(services::v1::permission::delete::delete(&db, id.into_inner()).await)
+pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
+    let response = services::v1::permission::delete::delete(&db, id.into_inner()).await?;
+    Ok(response)
 }
