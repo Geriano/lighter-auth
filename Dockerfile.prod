@@ -1,0 +1,103 @@
+# =============================================================================
+# Production Dockerfile for lighter-auth (Multi-stage Build)
+# =============================================================================
+# Stage 1: Builder - Compile the application
+# Stage 2: Runtime - Minimal image with only the binary
+#
+# Result: ~50MB final image (vs ~2GB if not multi-stage)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Builder
+# -----------------------------------------------------------------------------
+FROM rust:1.90-slim-bookworm AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+  pkg-config \
+  libssl-dev \
+  libpq-dev \
+  curl \
+  ca-certificates \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy dependency manifests for layer caching
+COPY Cargo.toml Cargo.lock ./
+COPY migration/Cargo.toml ./migration/
+
+# Build dependencies only (cache layer)
+RUN mkdir src && \
+  echo "fn main() {}" > src/main.rs && \
+  mkdir -p migration/src && \
+  echo "fn main() {}" > migration/src/main.rs && \
+  echo "" > migration/src/lib.rs && \
+  cargo build --release --features postgres && \
+  rm -rf src migration/src
+
+# Copy source code
+COPY . .
+
+# Build for production
+# - Release mode: optimized binary
+# - Postgres only: no sqlite overhead
+# - Strip symbols: smaller binary (configured in Cargo.toml)
+# - opt-level="z": size optimization (configured in Cargo.toml)
+# Touch source files to ensure rebuild (cache layer might have newer binary)
+RUN touch src/main.rs src/**/*.rs && \
+  cargo build --release --features postgres
+
+# Build migration binary
+RUN cargo build --release --manifest-path migration/Cargo.toml --features postgres
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim
+
+# Install runtime dependencies only (no build tools)
+RUN apt-get update && apt-get install -y \
+  ca-certificates \
+  libpq5 \
+  libssl3 \
+  curl \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN useradd -m -u 1000 lighter && \
+  mkdir -p /app && \
+  chown -R lighter:lighter /app
+
+WORKDIR /app
+
+# Copy compiled binaries from builder stage
+COPY --from=builder --chown=lighter:lighter \
+  /app/target/release/lighter-auth \
+  /usr/local/bin/lighter-auth
+
+COPY --from=builder --chown=lighter:lighter \
+  /app/target/release/lighter-auth-migration \
+  /usr/local/bin/lighter-auth-migration
+
+# Copy configuration files
+COPY --chown=lighter:lighter config/ /app/config/
+
+# Switch to non-root user
+USER lighter
+
+# Expose HTTP port
+EXPOSE 8080
+
+# Health check
+# Check if the service responds to /health endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Default command: run the application
+CMD ["lighter-auth"]
+
+# Note: Run migrations separately before starting:
+# docker-compose run --rm migration

@@ -1,0 +1,36 @@
+# =============================================================================
+# Grafana Datasource Provisioning - Prometheus
+# =============================================================================
+# This file automatically configures Prometheus as a datasource in Grafana
+# when the container starts. No manual configuration needed.
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      timeout: 60
+      timeInterval: 15s
+      queryTimeout: 60s
+      # Custom query parameters
+      customQueryParameters: ''
+      # Enable metrics lookup
+      manageAlerts: false
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      cacheLevel: 'High'
+      incrementalQuerying: false
+      disableRecordingRules: false
+      # Exemplars configuration
+      exemplarTraceIdDestinations: []
+    basicAuth: false
+    withCredentials: false
+    version: 1
+    editable: false
+    uid: prometheus-lighter-auth

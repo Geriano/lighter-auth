@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::entities::v1::{tokens, users};
+use crate::metrics::AppMetrics;
 use crate::responses::v1::permission::Permission;
 use crate::responses::v1::role::Role;
 use crate::responses::v1::user::simple::User;
@@ -56,6 +57,8 @@ impl FromRequest for Auth {
                 });
             }
         };
+
+        let metrics = req.app_data::<Data<AppMetrics>>().cloned();
 
         let header = match req.headers().get("Authorization").cloned() {
             Some(header) => header,
@@ -175,8 +178,9 @@ impl FromRequest for Auth {
 
             // Cache miss: fetch full auth data from database
             let user = user.first().cloned().unwrap();
-            let permissions = user.permissions(db).await?;
-            let roles = user.roles(db).await?;
+            let metrics_ref = metrics.as_ref().map(|m| m.as_ref());
+            let permissions = user.permissions(db, metrics_ref).await?;
+            let roles = user.roles(db, metrics_ref).await?;
             let auth = Auth {
                 id: token.id,
                 user: user.into(),

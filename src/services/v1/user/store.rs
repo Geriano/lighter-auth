@@ -6,13 +6,15 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use crate::config::auth::AuthConfig;
 use crate::entities::v1::users::Model;
 use crate::entities::v1::{permissions, roles};
+use crate::metrics::AppMetrics;
 use crate::requests::v1::user::UserStoreRequest;
 use crate::responses::v1::user::complete::UserWithPermissionAndRole;
 use crate::security::PasswordHasher;
 
-#[::tracing::instrument(skip(db, request), fields(email = %request.email, username = %request.username))]
+#[::tracing::instrument(skip(db, metrics, request), fields(email = %request.email, username = %request.username))]
 pub async fn store(
     db: &DatabaseConnection,
+    metrics: Option<&AppMetrics>,
     request: UserStoreRequest,
 ) -> anyhow::Result<Json<UserWithPermissionAndRole>> {
     // Validate request DTO
@@ -42,12 +44,12 @@ pub async fn store(
         .context("Failed to query roles from database")?;
 
     // Check if email already exists
-    if Model::email_exists(db, &email).await {
+    if Model::email_exists(db, metrics, &email).await {
         validation.add("email", "Email already exists.");
     }
 
     // Check if username already exists
-    if Model::username_exists(db, &username).await {
+    if Model::username_exists(db, metrics, &username).await {
         validation.add("username", "Username already exists.");
     }
 
@@ -103,8 +105,9 @@ pub async fn store(
         deleted_at: None,
     };
 
+    ::tracing::debug!("Service: Calling model.store with metrics={}", metrics.is_some());
     model
-        .store(db, permissions.clone(), roles.clone())
+        .store(db, metrics, permissions.clone(), roles.clone())
         .await
         .context("Failed to store user to database")?;
 

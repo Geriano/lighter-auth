@@ -1,5 +1,6 @@
 use lighter_common::prelude::*;
 
+use crate::metrics::AppMetrics;
 use crate::middlewares::v1::auth::Authenticated as Cache;
 use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::auth::LoginRequest;
@@ -25,9 +26,10 @@ use crate::services;
 pub async fn login(
     db: Data<DatabaseConnection>,
     cached: Data<Cache>,
+    metrics: Data<AppMetrics>,
     Json(request): Json<LoginRequest>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::auth::login::login(&db, &cached, request).await?;
+    let response = services::v1::auth::login::login(&db, &cached, request, &metrics).await?;
     Ok(Json(response))
 }
 
@@ -69,8 +71,9 @@ pub async fn authenticated(auth: Auth) -> Result<impl Responder, HttpError> {
 pub async fn logout(
     auth: Auth,
     db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
     cached: Data<Cache>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::auth::logout::logout(auth, &db, &cached).await?;
+    let response = services::v1::auth::logout::logout(auth, &db, Some(&metrics), &cached).await?;
     Ok(response)
 }

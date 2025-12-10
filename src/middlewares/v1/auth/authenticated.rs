@@ -4,6 +4,7 @@ use std::time::Duration;
 use lighter_common::prelude::*;
 
 use crate::cache::{Cache, CacheKey, HybridCache};
+use crate::metrics::AppMetrics;
 
 // Re-export the internal Auth type for use with the cache
 pub use super::internal::Auth;
@@ -11,12 +12,16 @@ pub use super::internal::Auth;
 #[derive(Clone)]
 pub struct Authenticated {
     cache: Arc<HybridCache>,
+    metrics: Option<Arc<AppMetrics>>,
 }
 
 impl Authenticated {
-    /// Create new Authenticated with a cache instance
-    pub fn new(cache: Arc<HybridCache>) -> Self {
-        Self { cache }
+    /// Create new Authenticated with a cache instance and optional metrics
+    pub fn new(cache: Arc<HybridCache>, metrics: Option<AppMetrics>) -> Self {
+        Self {
+            cache,
+            metrics: metrics.map(Arc::new),
+        }
     }
 
     /// Get auth from cache by token ID
@@ -28,13 +33,29 @@ impl Authenticated {
             Ok(result) => {
                 if result.is_some() {
                     ::tracing::debug!("Auth cache hit");
+
+                    // Track cache hit
+                    if let Some(ref m) = self.metrics {
+                        m.record_cache_hit();
+                    }
                 } else {
                     ::tracing::debug!("Auth cache miss");
+
+                    // Track cache miss
+                    if let Some(ref m) = self.metrics {
+                        m.record_cache_miss();
+                    }
                 }
                 Ok(result)
             }
             Err(e) => {
                 ::tracing::error!(error = %e, "Failed to get auth from cache");
+
+                // Track cache miss on error
+                if let Some(ref m) = self.metrics {
+                    m.record_cache_miss();
+                }
+
                 Err(e)
             }
         }

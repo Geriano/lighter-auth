@@ -19,6 +19,7 @@ pub mod router;
 pub mod security;
 pub mod services;
 
+#[cfg(test)]
 pub mod testing;
 
 use std::io::Error;
@@ -31,8 +32,10 @@ use actix_web::{
 };
 use lighter_common::prelude::*;
 use lighter_common::database as common_database;
+use sea_orm::{QueryFilter, ColumnTrait, PaginatorTrait};
 
 use database::DatabasePool;
+use cache::Cache;
 use security::{SecurityHeadersMiddleware, RateLimitMiddleware};
 use middlewares::v1::auth::Authenticated;
 use cache::{HybridCache, LocalCache, RedisCache};
@@ -120,15 +123,144 @@ async fn main() -> Result<(), Error> {
         "Cache initialized"
     );
 
-    // Initialize metrics
-    let metrics = AppMetrics::new();
+    // Initialize metrics with global labels from config
+    let metrics = AppMetrics::with_config(Some(&app_config));
 
     ::tracing::info!(
         "Metrics initialized with Prometheus exporter"
     );
 
-    // Create authenticated middleware with cache
-    let authenticated = Data::new(Authenticated::new(cache));
+    // =============================================================================
+    // Background Tasks for Metrics Collection
+    // =============================================================================
+
+    // Task 1: System metrics (CPU/memory) - every 5 seconds
+    {
+        let metrics_for_system = metrics.clone();
+        tokio::spawn(async move {
+            use sysinfo::System;
+
+            let mut sys = System::new_all();
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+
+            loop {
+                interval.tick().await;
+
+                sys.refresh_cpu_usage();
+                sys.refresh_memory();
+
+                let cpu_usage = sys.global_cpu_usage() as f64;
+                let memory_used = sys.used_memory();
+
+                metrics_for_system.set_cpu_usage(cpu_usage);
+                metrics_for_system.set_memory_usage(memory_used);
+
+                ::tracing::trace!(
+                    cpu_usage = cpu_usage,
+                    memory_used_mb = memory_used / 1024 / 1024,
+                    "Updated system metrics"
+                );
+            }
+        });
+    }
+
+    // Task 2: Active tokens tracking - every 60 seconds
+    {
+        let metrics_for_tokens = metrics.clone();
+        let db_for_tokens = database.connection().clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+
+            loop {
+                interval.tick().await;
+
+                use crate::entities::v1::tokens::{Entity as TokenEntity, Column as TokenColumn};
+                use sea_orm::EntityTrait;
+
+                match TokenEntity::find()
+                    .filter(TokenColumn::ExpiredAt.gt(chrono::Utc::now().naive_utc()))
+                    .count(&db_for_tokens)
+                    .await
+                {
+                    Ok(count) => {
+                        metrics_for_tokens.set_active_tokens(count as usize);
+                        ::tracing::debug!(active_tokens = count, "Updated active tokens metric");
+                    }
+                    Err(e) => {
+                        ::tracing::warn!(error = %e, "Failed to count active tokens");
+                    }
+                }
+            }
+        });
+    }
+
+    // Task 3: Business metrics (total users) - every 60 seconds
+    {
+        let metrics_for_business = metrics.clone();
+        let db_for_business = database.connection().clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+
+            loop {
+                interval.tick().await;
+
+                use crate::entities::v1::users::{Entity as UserEntity, Column as UserColumn};
+                use sea_orm::EntityTrait;
+
+                match UserEntity::find()
+                    .filter(UserColumn::DeletedAt.is_null())
+                    .count(&db_for_business)
+                    .await
+                {
+                    Ok(count) => {
+                        metrics_for_business.set_users_total(count as usize);
+                        ::tracing::debug!(users_total = count, "Updated users total metric");
+                    }
+                    Err(e) => {
+                        ::tracing::warn!(error = %e, "Failed to count users");
+                    }
+                }
+            }
+        });
+    }
+
+    // Task 4: Cache statistics - every 30 seconds
+    {
+        let metrics_for_cache = metrics.clone();
+        let cache_for_metrics = cache.clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+
+            loop {
+                interval.tick().await;
+
+                match cache_for_metrics.stats().await {
+                    Ok(stats) => {
+                        metrics_for_cache.set_cache_size(stats.size);
+
+                        ::tracing::debug!(
+                            cache_size = stats.size,
+                            hit_rate = stats.hit_rate,
+                            "Updated cache metrics"
+                        );
+                    }
+                    Err(e) => {
+                        ::tracing::warn!(error = %e, "Failed to get cache stats");
+                    }
+                }
+            }
+        });
+    }
+
+    ::tracing::info!(
+        "Background metrics collection tasks started (system, tokens, users, cache)"
+    );
+
+    // Create authenticated middleware with cache and metrics
+    let authenticated = Data::new(Authenticated::new(cache, Some(metrics.clone())));
 
     // Extract database connection for handlers (clone the Arc)
     // We keep the DatabasePool for health checks but also provide the raw connection

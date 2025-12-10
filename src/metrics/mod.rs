@@ -15,8 +15,23 @@ pub struct AppMetrics {
 
 impl AppMetrics {
     pub fn new() -> Self {
+        Self::with_config(None)
+    }
+
+    pub fn with_config(config: Option<&crate::config::AppConfig>) -> Self {
         let handle = PROMETHEUS_HANDLE.get_or_init(|| {
             let builder = PrometheusBuilder::new();
+
+            // Add global labels from config
+            let builder = if let Some(cfg) = config {
+                builder
+                    .add_global_label("service", cfg.app.name.clone())
+                    .add_global_label("version", cfg.app.version.clone())
+                    .add_global_label("environment", cfg.app.environment.clone())
+                    .add_global_label("instance", cfg.observability.service_instance_id.clone())
+            } else {
+                builder
+            };
 
             let builder = builder
                 .set_buckets_for_metric(
@@ -60,15 +75,15 @@ impl AppMetrics {
 
         // Database metrics
         describe_counter!(
-            "db_queries_total",
+            "database_queries_total",
             "Total number of database queries"
         );
         describe_histogram!(
-            "db_queries_duration_seconds",
+            "database_queries_duration_seconds",
             "Database query duration in seconds"
         );
         describe_gauge!(
-            "db_connections_active",
+            "database_connections_active",
             "Number of active database connections"
         );
 
@@ -129,13 +144,15 @@ impl AppMetrics {
 
     // Database metrics
     pub fn record_db_query(&self, operation: &str, duration_secs: f64) {
-        counter!("db_queries_total", "operation" => operation.to_string()).increment(1);
-        histogram!("db_queries_duration_seconds", "operation" => operation.to_string())
+        ::tracing::debug!("Metrics: Recording database query operation={}, duration={:.4}s", operation, duration_secs);
+        counter!("database_queries_total", "operation" => operation.to_string()).increment(1);
+        histogram!("database_queries_duration_seconds", "operation" => operation.to_string())
             .record(duration_secs);
+        ::tracing::debug!("Metrics: Database query metric recorded successfully");
     }
 
     pub fn set_db_connections(&self, count: usize) {
-        gauge!("db_connections_active").set(count as f64);
+        gauge!("database_connections_active").set(count as f64);
     }
 
     // Cache metrics
@@ -153,8 +170,8 @@ impl AppMetrics {
 
     // Auth metrics
     pub fn record_login_attempt(&self, success: bool) {
-        let status = if success { "success" } else { "failure" };
-        counter!("auth_login_attempts_total", "status" => status.to_string()).increment(1);
+        let status = if success { "true" } else { "false" };
+        counter!("auth_login_attempts_total", "success" => status.to_string()).increment(1);
     }
 
     pub fn set_active_tokens(&self, count: usize) {

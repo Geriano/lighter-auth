@@ -1,0 +1,20 @@
+# =============================================================================
+# Grafana Dashboard Provisioning Configuration
+# =============================================================================
+# This file tells Grafana to automatically load dashboard JSON files from
+# the specified directory when the container starts.
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Lighter Auth Dashboards'
+    orgId: 1
+    folder: 'Lighter Auth'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

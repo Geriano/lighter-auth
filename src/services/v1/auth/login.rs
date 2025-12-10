@@ -7,6 +7,7 @@ use sea_orm::ActiveValue::Set;
 
 use crate::config::auth::AuthConfig;
 use crate::entities::v1::users::{ActiveModel, Model};
+use crate::metrics::AppMetrics;
 use crate::middlewares::v1::auth::Authenticated as Cache;
 use crate::middlewares::v1::auth::internal::Auth;
 use crate::requests::v1::auth::LoginRequest;
@@ -16,11 +17,12 @@ use crate::security::PasswordHasher;
 // 1 hour
 pub const LIFETIME: Duration = Duration::from_secs(60 * 60);
 
-#[::tracing::instrument(skip(db, cached, request), fields(email_or_username = %request.email_or_username))]
+#[::tracing::instrument(skip(db, cached, request, metrics), fields(email_or_username = %request.email_or_username))]
 pub async fn login(
     db: &DatabaseConnection,
     cached: &Cache,
     request: LoginRequest,
+    metrics: &AppMetrics,
 ) -> anyhow::Result<Authenticated> {
     // Validate request DTO
     if let Err(errors) = request.validate() {
@@ -38,7 +40,7 @@ pub async fn login(
     let password = request.password;
 
     // Check if email or username exists in database
-    if !Model::email_or_username_exists(db, &email_or_username).await {
+    if !Model::email_or_username_exists(db, Some(metrics), &email_or_username).await {
         validation.add("email_or_username", "Email or username not found");
     }
 
@@ -46,7 +48,7 @@ pub async fn login(
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
-    let mut user = Model::find_by_email_or_username(db, &email_or_username)
+    let mut user = Model::find_by_email_or_username(db, Some(metrics), &email_or_username)
         .await
         .context("Failed to find user by email or username")?;
 
@@ -71,6 +73,9 @@ pub async fn login(
 
     if !is_valid {
         validation.add("password", "Password is incorrect");
+
+        // Record failed login attempt
+        metrics.record_login_attempt(false);
     }
 
     if !validation.is_empty() {
@@ -96,22 +101,25 @@ pub async fn login(
     }
 
     let token = user
-        .generate_token(db, None)
+        .generate_token(db, Some(metrics), None)
         .await
         .context("Failed to generate authentication token")?;
 
     let permissions = user
-        .permissions(db)
+        .permissions(db, Some(metrics))
         .await
         .context("Failed to fetch user permissions")?;
 
     let roles = user
-        .roles(db)
+        .roles(db, Some(metrics))
         .await
         .context("Failed to fetch user roles")?;
 
     // Log before moving user
     ::tracing::info!(user_id = %user.id, token_id = %token.id, "Login successful");
+
+    // Record successful login attempt
+    metrics.record_login_attempt(true);
 
     let auth = Auth {
         id: token.id,

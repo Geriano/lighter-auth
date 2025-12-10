@@ -3,12 +3,14 @@ use lighter_common::prelude::*;
 
 use crate::config::auth::AuthConfig;
 use crate::entities::v1::users::Model;
+use crate::metrics::AppMetrics;
 use crate::requests::v1::user::UserUpdatePasswordRequest;
 use crate::security::PasswordHasher;
 
-#[::tracing::instrument(skip(db, request), fields(user_id = %id))]
+#[::tracing::instrument(skip(db, metrics, request), fields(user_id = %id))]
 pub async fn update(
     db: &DatabaseConnection,
+    metrics: Option<&AppMetrics>,
     id: Uuid,
     request: UserUpdatePasswordRequest,
 ) -> anyhow::Result<Success> {
@@ -27,7 +29,7 @@ pub async fn update(
     let current_password = request.current_password;
     let new_password = request.new_password;
 
-    let user = Model::find_by_id(db, id)
+    let user = Model::find_by_id(db, metrics, id)
         .await
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
@@ -56,7 +58,7 @@ pub async fn update(
     let new_hash = hasher.hash(&new_password)
         .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?;
 
-    user.update_password(db, new_hash)
+    user.update_password(db, metrics, new_hash)
         .await
         .context("Failed to update user password in database")?;
 

@@ -1,5 +1,6 @@
 use lighter_common::prelude::*;
 
+use crate::metrics::AppMetrics;
 use crate::requests::v1::role::RoleRequest;
 use crate::responses::v1::role::{Role, RolePaginationRequest, RolePaginationResponse};
 use crate::services;
@@ -37,9 +38,10 @@ pub async fn paginate(
 #[post("/v1/role")]
 pub async fn store(
     db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
     Json(request): Json<RoleRequest>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::role::store::store(&db, request).await?;
+    let response = services::v1::role::store::store(&db, Some(&metrics), request).await?;
     Ok(Json(response))
 }
 
@@ -52,8 +54,12 @@ pub async fn store(
     responses(Role, BadRequest, Unauthorized, NotFound, InternalServerError,)
 )]
 #[get("/v1/role/{id}")]
-pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
-    let response = services::v1::role::show::show(&db, id.into_inner()).await?;
+pub async fn show(
+    db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
+    id: Path<Uuid>,
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::show::show(&db, Some(&metrics), id.into_inner()).await?;
     Ok(Json(response))
 }
 
@@ -68,10 +74,11 @@ pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl R
 #[put("/v1/role/{id}")]
 pub async fn update(
     db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
     id: Path<Uuid>,
     Json(request): Json<RoleRequest>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::role::update::update(&db, id.into_inner(), request).await?;
+    let response = services::v1::role::update::update(&db, Some(&metrics), id.into_inner(), request).await?;
     Ok(Json(response))
 }
 
@@ -84,7 +91,11 @@ pub async fn update(
     responses(Success, BadRequest, Unauthorized, NotFound, InternalServerError,)
 )]
 #[delete("/v1/role/{id}")]
-pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
-    let response = services::v1::role::delete::delete(&db, id.into_inner()).await?;
+pub async fn delete(
+    db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
+    id: Path<Uuid>,
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::role::delete::delete(&db, Some(&metrics), id.into_inner()).await?;
     Ok(response)
 }

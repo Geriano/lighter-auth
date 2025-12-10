@@ -3,31 +3,79 @@ target/
 **/target/
 migration/target/
 
+# Cargo lock files (keep for production builds)
+# Cargo.lock  # Commented out - we want to keep this for reproducible builds
+
 # Git
 .git/
 .github/
 .gitignore
+.gitattributes
 
-# Editor files
+# IDE and editor files
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
-.vscode/
-.idea/
+.DS_Store
 *.iml
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Documentation (keep README)
+# Documentation
 *.md
 !README.md
+docs/
+CLAUDE.md
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker files (don't copy into image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+
+# Testing
+coverage/
+*.profdata
+*.profraw
 
 # Logs
 *.log
+logs/
 
-# Test databases
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.old
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Rust-specific
+**/*.rs.bk
+*.pdb
+
+# Database files (for local SQLite)
 *.db
 *.sqlite
 *.sqlite3
+
+# Redis dump
+dump.rdb
+
+# Application data
+data/
+storage/
+
+# Plan files
+.claude/

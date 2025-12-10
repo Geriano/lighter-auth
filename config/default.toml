@@ -79,7 +79,7 @@ key = ""
 # Database connection URL
 # PostgreSQL: postgres://user:pass@host:port/dbname
 # SQLite: sqlite://path/to/file.db or sqlite::memory:
-url = "postgres://lighter:lighter@localhost:5432/lighter_auth"
+url = "postgres://postgres:postgres@postgres:5432/auth"
 
 # Maximum number of connections in the pool
 max_connections = 100
@@ -151,10 +151,10 @@ shards = 0
 # Redis Cache Settings
 [cache.redis]
 # Enable Redis cache (Redis is now always available)
-enabled = false
+enabled = true
 
 # Redis connection URL
-url = "redis://localhost:6379"
+url = "redis://redis:6379"
 
 # Redis database number (0-15)
 database = 0
@@ -183,7 +183,18 @@ endpoint = "/metrics"
 
 # Histogram bucket boundaries in milliseconds
 # Used for request duration metrics
-histogram_buckets = [5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0]
+histogram_buckets = [
+  5.0,
+  10.0,
+  25.0,
+  50.0,
+  100.0,
+  250.0,
+  500.0,
+  1000.0,
+  2500.0,
+  5000.0,
+]
 
 # Enable request metrics (counts, durations, status codes)
 request_metrics = true
@@ -265,7 +276,7 @@ audience = "lighter-api"
 # CORS (Cross-Origin Resource Sharing)
 [security.cors]
 # Enable CORS
-enabled = true
+enabled = false
 
 # Allowed origins (["*"] allows all origins)
 # Production should specify exact origins: ["https://example.com"]

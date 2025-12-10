@@ -1,20 +1,28 @@
 use lighter_common::prelude::*;
 use sea_orm::QuerySelect;
 use sea_orm::prelude::*;
+use std::time::Instant;
 
 use crate::entities::v1::users::{ActiveModel, Column, Entity, Model};
 use crate::entities::v1::{
     permission_role, permission_user, permissions, role_user, roles, tokens,
 };
+use crate::metrics::AppMetrics;
 use crate::responses::v1::user::simple::User;
 
 impl Model {
-    pub async fn find_by_id(db: &DatabaseConnection, id: Uuid) -> Option<Self> {
+    pub async fn find_by_id(
+        db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
+        id: Uuid,
+    ) -> Option<Self> {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(Column::Id.eq(id))
             .filter(Column::DeletedAt.is_null());
 
-        match query.one(db).await {
+        let result = match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
                 ::tracing::error!("Failed to find user by id");
@@ -22,15 +30,27 @@ impl Model {
 
                 None
             }
+        };
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_find_by_id", start.elapsed().as_secs_f64());
         }
+
+        result
     }
 
-    pub async fn find_by_email<T: ToString>(db: &DatabaseConnection, email: T) -> Option<Self> {
+    pub async fn find_by_email<T: ToString>(
+        db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
+        email: T,
+    ) -> Option<Self> {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(Column::Email.eq(email.to_string()))
             .filter(Column::DeletedAt.is_null());
 
-        match query.one(db).await {
+        let result = match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
                 ::tracing::error!("Failed to find user by email");
@@ -38,18 +58,27 @@ impl Model {
 
                 None
             }
+        };
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_find_by_email", start.elapsed().as_secs_f64());
         }
+
+        result
     }
 
     pub async fn find_by_username<T: ToString>(
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         username: T,
     ) -> Option<Self> {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(Column::Username.eq(username.to_string()))
             .filter(Column::DeletedAt.is_null());
 
-        match query.one(db).await {
+        let result = match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
                 ::tracing::error!("Failed to find user by username");
@@ -57,13 +86,22 @@ impl Model {
 
                 None
             }
+        };
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_find_by_username", start.elapsed().as_secs_f64());
         }
+
+        result
     }
 
     pub async fn find_by_email_or_username<T: ToString>(
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         email_or_username: T,
     ) -> Option<Self> {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(
                 Condition::any()
@@ -72,7 +110,7 @@ impl Model {
             )
             .filter(Column::DeletedAt.is_null());
 
-        match query.one(db).await {
+        let result = match query.one(db).await {
             Ok(user) => user,
             Err(e) => {
                 ::tracing::error!("Failed to find user by username or email");
@@ -80,13 +118,22 @@ impl Model {
 
                 None
             }
+        };
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_find_by_email_or_username", start.elapsed().as_secs_f64());
         }
+
+        result
     }
 
     pub async fn email_or_username_exists<T: ToString>(
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         email_or_username: T,
     ) -> bool {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(
                 Condition::any()
@@ -95,32 +142,66 @@ impl Model {
             )
             .count(db);
 
-        query.await.unwrap_or(0) > 0
+        let result = query.await.unwrap_or(0) > 0;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_email_or_username_exists", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
-    pub async fn email_exists<T: ToString>(db: &DatabaseConnection, email: T) -> bool {
+    pub async fn email_exists<T: ToString>(
+        db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
+        email: T,
+    ) -> bool {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(Column::Email.eq(email.to_string()))
             .count(db);
 
-        query.await.unwrap_or(0) > 0
+        let result = query.await.unwrap_or(0) > 0;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_email_exists", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
-    pub async fn username_exists<T: ToString>(db: &DatabaseConnection, username: T) -> bool {
+    pub async fn username_exists<T: ToString>(
+        db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
+        username: T,
+    ) -> bool {
+        let start = Instant::now();
+
         let query = Entity::find()
             .filter(Column::Username.eq(username.to_string()))
             .count(db);
 
-        query.await.unwrap_or(0) > 0
+        let result = query.await.unwrap_or(0) > 0;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_username_exists", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
     pub async fn store(
         &self,
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         permissions: Vec<permissions::Model>,
         roles: Vec<roles::Model>,
     ) -> Result<Self, TransactionError<DbErr>> {
-        db.transaction(|db| {
+        ::tracing::debug!("Model: user.store called with metrics={}", metrics.is_some());
+        let start = Instant::now();
+
+        let result = db.transaction(|db| {
             let user = self.clone();
             let permissions = permissions
                 .iter()
@@ -163,13 +244,25 @@ impl Model {
                 Ok(user)
             })
         })
-        .await
+        .await;
+
+        if let Some(m) = metrics {
+            let duration = start.elapsed().as_secs_f64();
+            ::tracing::debug!("Model: Recording user_store metric, duration={:.4}s", duration);
+            m.record_db_query("user_store", duration);
+            ::tracing::debug!("Model: Metric recorded successfully");
+        } else {
+            ::tracing::warn!("Model: user.store called but metrics is None!");
+        }
+
+        result
     }
 
     #[allow(clippy::too_many_arguments)]
     pub async fn update_general_information<Name, Email, Username>(
         &self,
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         name: Name,
         email: Email,
         email_verified_at: Option<NaiveDateTime>,
@@ -183,11 +276,12 @@ impl Model {
         Email: ToString,
         Username: ToString,
     {
+        let start = Instant::now();
         let name = name.to_string();
         let email = email.to_string();
         let username = username.to_string();
 
-        db.transaction(|db| {
+        let result = db.transaction(|db| {
             let user = self.clone();
             let permissions = permissions
                 .iter()
@@ -244,32 +338,60 @@ impl Model {
                 Ok(user)
             })
         })
-        .await
+        .await;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_update_general_information", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
     pub async fn update_password(
         &self,
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         password: impl Into<String>,
     ) -> Result<Self, DbErr> {
+        let start = Instant::now();
         let mut model = ActiveModel::from(self.clone());
 
         model.password = Set(password.into());
         model.updated_at = Set(now());
-        model.update(db).await
+        let result = model.update(db).await;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_update_password", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
-    pub async fn soft_delete(&self, db: &DatabaseConnection) -> Result<Self, DbErr> {
+    pub async fn soft_delete(
+        &self,
+        db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
+    ) -> Result<Self, DbErr> {
+        let start = Instant::now();
         let mut model = ActiveModel::from(self.clone());
 
         model.deleted_at = Set(Some(now()));
-        model.update(db).await
+        let result = model.update(db).await;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_soft_delete", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
     pub async fn permissions(
         &self,
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
     ) -> Result<Vec<permissions::Model>, DbErr> {
+        let start = Instant::now();
+
         let query = permissions::Entity::find()
             .join(
                 JoinType::LeftJoin,
@@ -289,29 +411,55 @@ impl Model {
             )
             .group_by(permissions::Column::Id);
 
-        query.all(db).await
+        let result = query.all(db).await;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_permissions", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
-    pub async fn roles(&self, db: &DatabaseConnection) -> Result<Vec<roles::Model>, DbErr> {
+    pub async fn roles(
+        &self,
+        db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
+    ) -> Result<Vec<roles::Model>, DbErr> {
+        let start = Instant::now();
+
         let query = roles::Entity::find()
             .inner_join(role_user::Entity)
             .filter(role_user::Column::UserId.eq(self.id));
 
-        query.all(db).await
+        let result = query.all(db).await;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_roles", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 
     pub async fn generate_token(
         &self,
         db: &DatabaseConnection,
+        metrics: Option<&AppMetrics>,
         expired_at: Option<NaiveDateTime>,
     ) -> Result<tokens::Model, DbErr> {
+        let start = Instant::now();
         let token = tokens::Model {
             id: Uuid::new_v4(),
             user_id: self.id,
             expired_at,
         };
 
-        token.store(db).await
+        let result = token.store(db, metrics).await;
+
+        if let Some(m) = metrics {
+            m.record_db_query("user_generate_token", start.elapsed().as_secs_f64());
+        }
+
+        result
     }
 }
 

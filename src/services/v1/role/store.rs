@@ -2,11 +2,16 @@ use anyhow::Context;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::roles::Model;
+use crate::metrics::AppMetrics;
 use crate::requests::v1::role::RoleRequest;
 use crate::responses::v1::role::Role;
 
-#[::tracing::instrument(skip(db, request), fields(name = %request.name))]
-pub async fn store(db: &DatabaseConnection, request: RoleRequest) -> anyhow::Result<Role> {
+#[::tracing::instrument(skip(db, metrics, request), fields(name = %request.name))]
+pub async fn store(
+    db: &DatabaseConnection,
+    metrics: Option<&AppMetrics>,
+    request: RoleRequest,
+) -> anyhow::Result<Role> {
     // Validate request DTO
     if let Err(errors) = request.validate() {
         let mut validation = Validation::new();
@@ -21,7 +26,7 @@ pub async fn store(db: &DatabaseConnection, request: RoleRequest) -> anyhow::Res
     let code = name.replace(" ", "_").to_uppercase();
 
     // Check if role code already exists
-    if Model::code_exist(db, &code).await {
+    if Model::code_exist(db, metrics, &code).await {
         validation.add("name", "Name already exist");
     }
 
@@ -35,7 +40,7 @@ pub async fn store(db: &DatabaseConnection, request: RoleRequest) -> anyhow::Res
         name,
     };
 
-    role.store(db)
+    role.store(db, metrics)
         .await
         .context("Failed to store role to database")?;
 

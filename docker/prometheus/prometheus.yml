@@ -1,0 +1,107 @@
+# =============================================================================
+# Prometheus Configuration for lighter-auth
+# =============================================================================
+# This configuration scrapes metrics from the lighter-auth service and
+# Prometheus itself for monitoring and visualization in Grafana.
+# =============================================================================
+
+global:
+  # How frequently to scrape targets by default
+  scrape_interval: 15s
+
+  # How frequently to evaluate rules
+  evaluation_interval: 15s
+
+  # Attach these labels to any time series or alerts when communicating with
+  # external systems (federation, remote storage, Alertmanager)
+  external_labels:
+    environment: 'development'
+    service: 'lighter-auth'
+    cluster: 'local'
+
+# Scrape configurations
+scrape_configs:
+  # =============================================================================
+  # Prometheus self-monitoring
+  # =============================================================================
+  - job_name: 'prometheus'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          component: 'prometheus'
+
+  # =============================================================================
+  # lighter-auth Service (Unified - Both dev and prod)
+  # =============================================================================
+  # Note: service, version, environment, and instance labels now come from
+  # the application metrics (global labels), not from Prometheus scrape config
+  - job_name: 'lighter-auth'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+    static_configs:
+      # Development instance
+      - targets:
+          - 'auth-dev:8080'
+      # Production instance
+      - targets:
+          - 'auth-prod:8080'
+
+    # Relabel configurations to add useful metadata
+    relabel_configs:
+      # Add instance label from target
+      - source_labels: [__address__]
+        target_label: instance
+
+      # Add endpoint label
+      - source_labels: [__metrics_path__]
+        target_label: endpoint
+
+  # =============================================================================
+  # PostgreSQL Exporter (optional - enable if using postgres_exporter)
+  # =============================================================================
+  # - job_name: 'postgres'
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets:
+  #         - 'postgres-exporter:9187'
+  #       labels:
+  #         component: 'database'
+
+  # =============================================================================
+  # Redis Exporter (optional - enable if using redis_exporter)
+  # =============================================================================
+  # - job_name: 'redis'
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets:
+  #         - 'redis-exporter:9121'
+  #       labels:
+  #         component: 'cache'
+
+# =============================================================================
+# Alerting Configuration (optional)
+# =============================================================================
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# =============================================================================
+# Rule Files (optional)
+# =============================================================================
+# rule_files:
+#   - 'alerts/*.yml'
+#   - 'recording_rules/*.yml'
+
+# =============================================================================
+# Remote Write Configuration (optional - for long-term storage)
+# =============================================================================
+# remote_write:
+#   - url: "http://remote-storage:9090/api/v1/write"
+#     basic_auth:
+#       username: 'prometheus'
+#       password: 'changeme'

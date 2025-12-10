@@ -1,5 +1,6 @@
 use lighter_common::prelude::*;
 
+use crate::metrics::AppMetrics;
 use crate::requests::v1::user::{
     UserStoreRequest, UserUpdateGeneralInformationRequest, UserUpdatePasswordRequest,
 };
@@ -48,9 +49,12 @@ pub async fn paginate(
 #[post("/v1/user")]
 pub async fn store(
     db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
     Json(request): Json<UserStoreRequest>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::user::store::store(&db, request).await?;
+    ::tracing::debug!("Controller: Passing metrics to user::store service");
+    let response = services::v1::user::store::store(&db, Some(&metrics), request).await?;
+    ::tracing::debug!("Controller: user::store service completed");
     Ok(Json(response))
 }
 
@@ -68,8 +72,12 @@ pub async fn store(
     ),
 )]
 #[get("/v1/user/{id}")]
-pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
-    let response = services::v1::user::show::show(&db, id.into_inner()).await?;
+pub async fn show(
+    db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
+    id: Path<Uuid>,
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::show::show(&db, &metrics, id.into_inner()).await?;
     Ok(Json(response))
 }
 
@@ -94,10 +102,11 @@ pub async fn show(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl R
 #[put("/v1/user/{id}")]
 pub async fn update_general_information(
     db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
     id: Path<Uuid>,
     Json(request): Json<UserUpdateGeneralInformationRequest>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::user::update_general_information::update(&db, id.into_inner(), request).await?;
+    let response = services::v1::user::update_general_information::update(&db, Some(&metrics), id.into_inner(), request).await?;
     Ok(response)
 }
 
@@ -123,10 +132,11 @@ pub async fn update_general_information(
 #[put("/v1/user/{id}/password")]
 pub async fn update_password(
     db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
     id: Path<Uuid>,
     Json(request): Json<UserUpdatePasswordRequest>,
 ) -> Result<impl Responder, HttpError> {
-    let response = services::v1::user::update_password::update(&db, id.into_inner(), request).await?;
+    let response = services::v1::user::update_password::update(&db, Some(&metrics), id.into_inner(), request).await?;
     Ok(response)
 }
 
@@ -144,7 +154,11 @@ pub async fn update_password(
     ),
 )]
 #[delete("/v1/user/{id}")]
-pub async fn delete(db: Data<DatabaseConnection>, id: Path<Uuid>) -> Result<impl Responder, HttpError> {
-    let response = services::v1::user::delete::delete(&db, id.into_inner()).await?;
+pub async fn delete(
+    db: Data<DatabaseConnection>,
+    metrics: Data<AppMetrics>,
+    id: Path<Uuid>,
+) -> Result<impl Responder, HttpError> {
+    let response = services::v1::user::delete::delete(&db, Some(&metrics), id.into_inner()).await?;
     Ok(response)
 }

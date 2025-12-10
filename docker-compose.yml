@@ -1,0 +1,256 @@
+version: "3.8"
+
+networks:
+  lighter-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  cargo-registry: # Cache Cargo registry for dev
+  cargo-git: # Cache Cargo git repos for dev
+  target-dev: # Cache build artifacts for dev
+
+services:
+  # =============================================================================
+  # PostgreSQL Database
+  # =============================================================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: lighter-auth-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-lighter}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-lighter}
+      POSTGRES_DB: ${DB_NAME:-lighter_auth}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - lighter-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-lighter} -d ${DB_NAME:-lighter_auth}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # =============================================================================
+  # Redis Cache
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: lighter-auth-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --loglevel warning
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - lighter-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # =============================================================================
+  # Database Migration Runner
+  # =============================================================================
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: lighter-auth-migration
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-lighter}:${DB_PASSWORD:-lighter}@postgres:5432/${DB_NAME:-lighter_auth}
+      LIGHTER_AUTH__DATABASE__URL: postgres://${DB_USER:-lighter}:${DB_PASSWORD:-lighter}@postgres:5432/${DB_NAME:-lighter_auth}
+    volumes:
+      - ./migration:/app/migration:ro
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lighter-network
+    command:
+      ["cargo", "run", "--manifest-path", "migration/Cargo.toml", "--", "up"]
+    profiles:
+      - tools
+
+  # =============================================================================
+  # Auth Service - Development (Hot-reload)
+  # =============================================================================
+  auth-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: lighter-auth-dev
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: 1024M
+    environment:
+      APP_ENV: development
+      LIGHTER_AUTH__APP__ENVIRONMENT: development
+      LIGHTER_AUTH__APP__HOST: 0.0.0.0
+      LIGHTER_AUTH__APP__PORT: 8080
+      LIGHTER_AUTH__APP__SHUTDOWN_TIMEOUT: 30
+      LIGHTER_AUTH__DATABASE__URL: postgres://${DB_USER:-lighter}:${DB_PASSWORD:-lighter}@postgres:5432/${DB_NAME:-lighter_auth}
+      LIGHTER_AUTH__CACHE__REDIS__URL: redis://redis:6379
+      LIGHTER_AUTH__CACHE__REDIS__POOL_SIZE: 10
+      LIGHTER_AUTH__METRICS__ENABLED: "true"
+      RUST_LOG: ${RUST_LOG:-info}
+      RUST_BACKTRACE: ${RUST_BACKTRACE:-1}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      - ./Cargo.toml:/app/Cargo.toml:ro
+      - ./Cargo.lock:/app/Cargo.lock
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - target-dev:/app/target
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lighter-network
+    profiles:
+      - dev
+
+  # =============================================================================
+  # Auth Service - Production (Optimized)
+  # =============================================================================
+  auth-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: lighter-auth-prod
+    restart: unless-stopped
+    deploy:
+      # resources:
+      #   limits:
+      #     cpus: 2
+      #     memory: 1024M
+    environment:
+      APP_ENV: production
+      LIGHTER_AUTH__APP__ENVIRONMENT: production
+      LIGHTER_AUTH__APP__HOST: 0.0.0.0
+      LIGHTER_AUTH__APP__PORT: 8080
+      LIGHTER_AUTH__APP__SHUTDOWN_TIMEOUT: 30
+      LIGHTER_AUTH__DATABASE__URL: postgres://${DB_USER:-lighter}:${DB_PASSWORD:-lighter}@postgres:5432/${DB_NAME:-lighter_auth}
+      LIGHTER_AUTH__CACHE__REDIS__URL: redis://redis:6379
+      LIGHTER_AUTH__CACHE__REDIS__POOL_SIZE: 20
+      LIGHTER_AUTH__METRICS__ENABLED: "true"
+      LIGHTER_AUTH__OBSERVABILITY__TRACING_ENABLED: "false"
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lighter-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - prod
+
+  # =============================================================================
+  # Prometheus - Metrics Collection
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: lighter-auth-prometheus
+    restart: unless-stopped
+    user: "65534:65534" # nobody user for security
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - lighter-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # =============================================================================
+  # Grafana - Visualization & Dashboards
+  # =============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lighter-auth-grafana
+    restart: unless-stopped
+    user: "472:472" # grafana user for security
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_PATHS_DATA: /var/lib/grafana
+      GF_PATHS_LOGS: /var/log/grafana
+      GF_PATHS_PLUGINS: /var/lib/grafana/plugins
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_INSTALL_PLUGINS: ""
+      GF_LOG_MODE: console
+      GF_LOG_LEVEL: ${GRAFANA_LOG_LEVEL:-info}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - lighter-network
+    healthcheck:
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

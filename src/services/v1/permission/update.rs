@@ -2,12 +2,14 @@ use anyhow::Context;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::permissions::Model;
+use crate::metrics::AppMetrics;
 use crate::requests::v1::permission::PermissionRequest;
 use crate::responses::v1::permission::Permission;
 
-#[::tracing::instrument(skip(db, request), fields(permission_id = %id, name = %request.name))]
+#[::tracing::instrument(skip(db, metrics, request), fields(permission_id = %id, name = %request.name))]
 pub async fn update(
     db: &DatabaseConnection,
+    metrics: Option<&AppMetrics>,
     id: Uuid,
     request: PermissionRequest,
 ) -> anyhow::Result<Permission> {
@@ -24,13 +26,13 @@ pub async fn update(
 
     let name = request.name.trim().to_lowercase();
 
-    let permission = Model::find_by_id(db, id)
+    let permission = Model::find_by_id(db, metrics, id)
         .await
         .context("Failed to query permission from database")?
         .ok_or_else(|| anyhow::anyhow!("Permission not found"))?;
 
     permission
-        .update(db, name)
+        .update(db, metrics, name)
         .await
         .context("Failed to update permission in database")?;
 

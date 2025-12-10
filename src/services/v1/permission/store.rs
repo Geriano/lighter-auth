@@ -2,12 +2,14 @@ use anyhow::Context;
 use lighter_common::prelude::*;
 
 use crate::entities::v1::permissions::Model;
+use crate::metrics::AppMetrics;
 use crate::requests::v1::permission::PermissionRequest;
 use crate::responses::v1::permission::Permission;
 
-#[::tracing::instrument(skip(db, request), fields(name = %request.name))]
+#[::tracing::instrument(skip(db, metrics, request), fields(name = %request.name))]
 pub async fn store(
     db: &DatabaseConnection,
+    metrics: Option<&AppMetrics>,
     request: PermissionRequest,
 ) -> anyhow::Result<Permission> {
     // Validate request DTO
@@ -24,7 +26,7 @@ pub async fn store(
     let code = name.replace(" ", "_").to_uppercase();
 
     // Check if permission code already exists
-    if Model::code_exist(db, &code).await {
+    if Model::code_exist(db, metrics, &code).await {
         validation.add("name", "Name already exist");
     }
 
@@ -39,7 +41,7 @@ pub async fn store(
     };
 
     permission
-        .store(db)
+        .store(db, metrics)
         .await
         .context("Failed to store permission to database")?;
 

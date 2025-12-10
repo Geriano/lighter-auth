@@ -5,11 +5,13 @@ use sea_orm::prelude::*;
 
 use crate::entities::v1::users::Model;
 use crate::entities::v1::{permissions, roles};
+use crate::metrics::AppMetrics;
 use crate::requests::v1::user::UserUpdateGeneralInformationRequest;
 
-#[::tracing::instrument(skip(db, request), fields(user_id = %id, email = %request.email, username = %request.username))]
+#[::tracing::instrument(skip(db, metrics, request), fields(user_id = %id, email = %request.email, username = %request.username))]
 pub async fn update(
     db: &DatabaseConnection,
+    metrics: Option<&AppMetrics>,
     id: Uuid,
     request: UserUpdateGeneralInformationRequest,
 ) -> anyhow::Result<Success> {
@@ -66,12 +68,13 @@ pub async fn update(
         return Err(anyhow::anyhow!("Validation failed: {:?}", validation));
     }
 
-    let user = Model::find_by_id(db, id)
+    let user = Model::find_by_id(db, metrics, id)
         .await
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
     user.update_general_information(
         db,
+        metrics,
         name,
         email,
         user.email_verified_at,

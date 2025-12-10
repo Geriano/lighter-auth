@@ -1,69 +1,69 @@
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Rate, Counter, Trend } from 'k6/metrics';
-import { randomString } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import http from "k6/http";
+import { check, sleep } from "k6";
+import { Rate, Counter, Trend } from "k6/metrics";
+import { randomString } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
 
 // Configuration
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
 
 // Custom metrics
-const loginSuccessRate = new Rate('login_success_rate');
-const createUserSuccessRate = new Rate('create_user_success_rate');
-const authUserSuccessRate = new Rate('auth_user_success_rate');
-const logoutSuccessRate = new Rate('logout_success_rate');
+const loginSuccessRate = new Rate("login_success_rate");
+const createUserSuccessRate = new Rate("create_user_success_rate");
+const authUserSuccessRate = new Rate("auth_user_success_rate");
+const logoutSuccessRate = new Rate("logout_success_rate");
 
-const loginDuration = new Trend('login_duration');
-const createUserDuration = new Trend('create_user_duration');
-const authUserDuration = new Trend('auth_user_duration');
-const logoutDuration = new Trend('logout_duration');
+const loginDuration = new Trend("login_duration");
+const createUserDuration = new Trend("create_user_duration");
+const authUserDuration = new Trend("auth_user_duration");
+const logoutDuration = new Trend("logout_duration");
 
-const totalOperations = new Counter('total_operations');
-const failedOperations = new Counter('failed_operations');
+const totalOperations = new Counter("total_operations");
+const failedOperations = new Counter("failed_operations");
 
 // Load test configuration
 export const options = {
   stages: [
-    { duration: '1m', target: 50 },   // Ramp up to 50 users over 1 minute
-    { duration: '3m', target: 50 },   // Stay at 50 users for 3 minutes
-    { duration: '1m', target: 100 },  // Ramp up to 100 users over 1 minute
-    { duration: '3m', target: 100 },  // Stay at 100 users for 3 minutes
-    { duration: '1m', target: 0 },    // Ramp down to 0 users over 1 minute
+    { duration: "1m", target: 50 }, // Ramp up to 50 users over 1 minute
+    { duration: "3m", target: 50 }, // Stay at 50 users for 3 minutes
+    { duration: "1m", target: 100 }, // Ramp up to 100 users over 1 minute
+    { duration: "3m", target: 100 }, // Stay at 100 users for 3 minutes
+    { duration: "1m", target: 0 }, // Ramp down to 0 users over 1 minute
   ],
 
   thresholds: {
     // HTTP request duration thresholds
-    'http_req_duration': [
-      'p(95)<500',    // 95% of requests should be below 500ms
-      'p(99)<1000',   // 99% of requests should be below 1000ms
+    http_req_duration: [
+      "p(95)<500", // 95% of requests should be below 500ms
+      "p(99)<1000", // 99% of requests should be below 1000ms
     ],
 
     // Overall error rate should be less than 5%
-    'http_req_failed': ['rate<0.05'],
+    http_req_failed: ["rate<0.05"],
 
     // Custom metric thresholds
-    'login_success_rate': ['rate>0.95'],        // Login success rate > 95%
-    'create_user_success_rate': ['rate>0.95'],  // User creation success rate > 95%
-    'auth_user_success_rate': ['rate>0.95'],    // Auth check success rate > 95%
-    'logout_success_rate': ['rate>0.95'],       // Logout success rate > 95%
+    login_success_rate: ["rate>0.95"], // Login success rate > 95%
+    create_user_success_rate: ["rate>0.95"], // User creation success rate > 95%
+    auth_user_success_rate: ["rate>0.95"], // Auth check success rate > 95%
+    logout_success_rate: ["rate>0.95"], // Logout success rate > 95%
 
     // Minimum throughput
-    'http_reqs': ['rate>10'],                   // At least 10 requests per second
+    http_reqs: ["rate>10"], // At least 10 requests per second
 
     // Specific operation duration thresholds
-    'login_duration': ['p(95)<300'],            // Login should be fast
-    'create_user_duration': ['p(95)<500'],      // User creation moderate
-    'auth_user_duration': ['p(95)<200'],        // Auth check should be very fast (cached)
-    'logout_duration': ['p(95)<200'],           // Logout should be fast
+    login_duration: ["p(95)<300"], // Login should be fast
+    create_user_duration: ["p(95)<500"], // User creation moderate
+    auth_user_duration: ["p(95)<200"], // Auth check should be very fast (cached)
+    logout_duration: ["p(95)<200"], // Logout should be fast
   },
 
   // Additional configuration
-  noConnectionReuse: false,  // Reuse connections for better performance
-  userAgent: 'K6LoadTest/1.0',
+  noConnectionReuse: false, // Reuse connections for better performance
+  userAgent: "K6LoadTest/1.0",
 
   // Tags for better reporting
   tags: {
-    testType: 'load',
-    service: 'lighter-auth',
+    testType: "load",
+    service: "lighter-auth",
   },
 };
 
@@ -110,9 +110,9 @@ function createUser() {
 
   const params = {
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    tags: { operation: 'create_user' },
+    tags: { operation: "create_user" },
   };
 
   const startTime = new Date();
@@ -123,8 +123,8 @@ function createUser() {
   createUserDuration.add(duration);
 
   const success = check(response, {
-    'user created successfully': (r) => r.status === 200,
-    'user response has id': (r) => {
+    "user created successfully": (r) => r.status === 200,
+    "user response has id": (r) => {
       if (r.status === 200) {
         try {
           const body = JSON.parse(r.body);
@@ -141,7 +141,9 @@ function createUser() {
 
   if (!success) {
     failedOperations.add(1);
-    console.error(`Failed to create user: ${response.status} - ${response.body}`);
+    console.error(
+      `Failed to create user: ${response.status} - ${response.body}`,
+    );
     return null;
   }
 
@@ -166,9 +168,9 @@ function login(credentials) {
 
   const params = {
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    tags: { operation: 'login' },
+    tags: { operation: "login" },
   };
 
   const startTime = new Date();
@@ -179,19 +181,19 @@ function login(credentials) {
   loginDuration.add(duration);
 
   const success = check(response, {
-    'login successful': (r) => r.status === 200,
-    'login response has token': (r) => {
+    "login successful": (r) => r.status === 200,
+    "login response has token": (r) => {
       if (r.status === 200) {
         try {
           const body = JSON.parse(r.body);
-          return body.token !== undefined && body.token !== '';
+          return body.token !== undefined && body.token !== "";
         } catch (e) {
           return false;
         }
       }
       return false;
     },
-    'login response has user data': (r) => {
+    "login response has user data": (r) => {
       if (r.status === 200) {
         try {
           const body = JSON.parse(r.body);
@@ -222,9 +224,9 @@ function login(credentials) {
 function getAuthenticatedUser(token) {
   const params = {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
-    tags: { operation: 'get_authenticated_user' },
+    tags: { operation: "get_authenticated_user" },
   };
 
   const startTime = new Date();
@@ -235,12 +237,12 @@ function getAuthenticatedUser(token) {
   authUserDuration.add(duration);
 
   const success = check(response, {
-    'authenticated user retrieved': (r) => r.status === 200,
-    'authenticated user has data': (r) => {
+    "authenticated user retrieved": (r) => r.status === 200,
+    "authenticated user has data": (r) => {
       if (r.status === 200) {
         try {
           const body = JSON.parse(r.body);
-          return body.id !== undefined && body.email !== undefined;
+          return body.user.id !== undefined && body.user.email !== undefined;
         } catch (e) {
           return false;
         }
@@ -253,7 +255,9 @@ function getAuthenticatedUser(token) {
 
   if (!success) {
     failedOperations.add(1);
-    console.error(`Failed to get authenticated user: ${response.status} - ${response.body}`);
+    console.error(
+      `Failed to get authenticated user: ${response.status} - ${response.body}`,
+    );
   }
 
   return success;
@@ -265,9 +269,9 @@ function getAuthenticatedUser(token) {
 function logout(token) {
   const params = {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
-    tags: { operation: 'logout' },
+    tags: { operation: "logout" },
   };
 
   const startTime = new Date();
@@ -278,7 +282,7 @@ function logout(token) {
   logoutDuration.add(duration);
 
   const success = check(response, {
-    'logout successful': (r) => r.status === 200,
+    "logout successful": (r) => r.status === 200,
   });
 
   logoutSuccessRate.add(success);
@@ -304,7 +308,7 @@ export default function () {
   const user = createUser();
 
   if (!user) {
-    console.error('Failed to create user, skipping iteration');
+    console.error("Failed to create user, skipping iteration");
     sleep(2);
     return;
   }
@@ -316,7 +320,7 @@ export default function () {
   const token = login(user);
 
   if (!token) {
-    console.error('Failed to login, skipping iteration');
+    console.error("Failed to login, skipping iteration");
     sleep(2);
     return;
   }
@@ -329,7 +333,7 @@ export default function () {
   const authSuccess = getAuthenticatedUser(token);
 
   if (!authSuccess) {
-    console.error('Failed to get authenticated user');
+    console.error("Failed to get authenticated user");
   }
 
   // Think time between operations
@@ -346,14 +350,14 @@ export default function () {
  * Setup function - runs once at the start of the test
  */
 export function setup() {
-  console.log(`\n${'='.repeat(80)}`);
-  console.log('K6 Load Test for lighter-auth Service');
-  console.log(`${'='.repeat(80)}`);
+  console.log(`\n${"=".repeat(80)}`);
+  console.log("K6 Load Test for lighter-auth Service");
+  console.log(`${"=".repeat(80)}`);
   console.log(`Base URL: ${BASE_URL}`);
   console.log(`Test Type: Load Test`);
   console.log(`Test Duration: ~9 minutes (including ramp up/down)`);
   console.log(`Max VUs: 100`);
-  console.log(`${'='.repeat(80)}\n`);
+  console.log(`${"=".repeat(80)}\n`);
 
   // Verify the service is accessible
   const healthCheck = http.get(`${BASE_URL}/`);
@@ -362,25 +366,25 @@ export function setup() {
     console.error(`ERROR: Service is not accessible at ${BASE_URL}`);
     console.error(`Status: ${healthCheck.status}`);
     console.error(`Body: ${healthCheck.body}`);
-    throw new Error('Service health check failed');
+    throw new Error("Service health check failed");
   }
 
-  console.log('Service health check passed. Starting load test...\n');
+  console.log("Service health check passed. Starting load test...\n");
 }
 
 /**
  * Teardown function - runs once at the end of the test
  */
 export function teardown(data) {
-  console.log(`\n${'='.repeat(80)}`);
-  console.log('Load Test Complete');
-  console.log(`${'='.repeat(80)}\n`);
-  console.log('Check the detailed results above for:');
-  console.log('  - HTTP request duration percentiles (p95, p99)');
-  console.log('  - Success rates for each operation');
-  console.log('  - Total operations and throughput');
-  console.log('  - Failed operations count');
-  console.log('\nRefer to the thresholds section to see if the test passed.\n');
+  console.log(`\n${"=".repeat(80)}`);
+  console.log("Load Test Complete");
+  console.log(`${"=".repeat(80)}\n`);
+  console.log("Check the detailed results above for:");
+  console.log("  - HTTP request duration percentiles (p95, p99)");
+  console.log("  - Success rates for each operation");
+  console.log("  - Total operations and throughput");
+  console.log("  - Failed operations count");
+  console.log("\nRefer to the thresholds section to see if the test passed.\n");
 }
 
 /**
@@ -388,8 +392,9 @@ export function teardown(data) {
  */
 export function handleSummary(data) {
   return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
-    '/Users/gerianoadikaputra/Programs/Own/lighter/auth/tests/load/results.json': JSON.stringify(data),
+    stdout: textSummary(data, { indent: " ", enableColors: true }),
+    "/Users/gerianoadikaputra/Programs/Own/lighter/auth/tests/load/results.json":
+      JSON.stringify(data),
   };
 }
 
@@ -397,13 +402,13 @@ export function handleSummary(data) {
  * Text summary helper
  */
 function textSummary(data, options) {
-  const indent = options.indent || '';
+  const indent = options.indent || "";
   const enableColors = options.enableColors || false;
 
-  let summary = '\n';
-  summary += `${indent}${'='.repeat(80)}\n`;
+  let summary = "\n";
+  summary += `${indent}${"=".repeat(80)}\n`;
   summary += `${indent}Load Test Results Summary\n`;
-  summary += `${indent}${'='.repeat(80)}\n\n`;
+  summary += `${indent}${"=".repeat(80)}\n\n`;
 
   // Test duration
   summary += `${indent}Test Duration: ${(data.state.testRunDurationMs / 1000).toFixed(2)}s\n\n`;
@@ -413,8 +418,8 @@ function textSummary(data, options) {
   summary += `${indent}  Total Requests: ${data.metrics.http_reqs.values.count}\n`;
   summary += `${indent}  Request Rate: ${data.metrics.http_reqs.values.rate.toFixed(2)} req/s\n`;
   summary += `${indent}  Failed Requests: ${(data.metrics.http_req_failed.values.rate * 100).toFixed(2)}%\n`;
-  summary += `${indent}  Request Duration (p95): ${data.metrics.http_req_duration.values['p(95)'].toFixed(2)}ms\n`;
-  summary += `${indent}  Request Duration (p99): ${data.metrics.http_req_duration.values['p(99)'].toFixed(2)}ms\n\n`;
+  summary += `${indent}  Request Duration (p95): ${data.metrics.http_req_duration.values["p(95)"].toFixed(2)}ms\n`;
+  summary += `${indent}  Request Duration (p99): ${data.metrics.http_req_duration.values["p(99)"].toFixed(2)}ms\n\n`;
 
   // Custom metrics
   summary += `${indent}Operation Success Rates:\n`;
@@ -425,10 +430,10 @@ function textSummary(data, options) {
 
   // Operation durations
   summary += `${indent}Operation Durations (p95):\n`;
-  summary += `${indent}  User Creation: ${data.metrics.create_user_duration.values['p(95)'].toFixed(2)}ms\n`;
-  summary += `${indent}  Login: ${data.metrics.login_duration.values['p(95)'].toFixed(2)}ms\n`;
-  summary += `${indent}  Auth Check: ${data.metrics.auth_user_duration.values['p(95)'].toFixed(2)}ms\n`;
-  summary += `${indent}  Logout: ${data.metrics.logout_duration.values['p(95)'].toFixed(2)}ms\n\n`;
+  summary += `${indent}  User Creation: ${data.metrics.create_user_duration.values["p(95)"].toFixed(2)}ms\n`;
+  summary += `${indent}  Login: ${data.metrics.login_duration.values["p(95)"].toFixed(2)}ms\n`;
+  summary += `${indent}  Auth Check: ${data.metrics.auth_user_duration.values["p(95)"].toFixed(2)}ms\n`;
+  summary += `${indent}  Logout: ${data.metrics.logout_duration.values["p(95)"].toFixed(2)}ms\n\n`;
 
   // Checks
   summary += `${indent}Checks:\n`;
@@ -436,7 +441,7 @@ function textSummary(data, options) {
   summary += `${indent}  Failed: ${data.metrics.checks.values.fails}\n`;
   summary += `${indent}  Pass Rate: ${(data.metrics.checks.values.rate * 100).toFixed(2)}%\n\n`;
 
-  summary += `${indent}${'='.repeat(80)}\n\n`;
+  summary += `${indent}${"=".repeat(80)}\n\n`;
 
   return summary;
 }
