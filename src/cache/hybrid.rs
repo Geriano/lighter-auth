@@ -335,7 +335,6 @@ mod tests {
         assert_eq!(stats.size, 1);
     }
 
-    #[cfg(feature = "redis-cache")]
     #[tokio::test]
     async fn test_hybrid_cache_l1_miss_l2_hit() {
         // Helper to create test Redis instance
@@ -387,7 +386,6 @@ mod tests {
         assert_eq!(stats.misses, 1);
     }
 
-    #[cfg(feature = "redis-cache")]
     #[tokio::test]
     async fn test_hybrid_cache_set_writes_both() {
         async fn test_redis() -> Option<RedisCache> {
@@ -422,7 +420,6 @@ mod tests {
         assert_eq!(l2_value, Some("value_both".to_string()));
     }
 
-    #[cfg(feature = "redis-cache")]
     #[tokio::test]
     async fn test_hybrid_cache_delete_removes_both() {
         async fn test_redis() -> Option<RedisCache> {
@@ -460,7 +457,6 @@ mod tests {
         assert_eq!(l2_value, None);
     }
 
-    #[cfg(feature = "redis-cache")]
     #[tokio::test]
     async fn test_hybrid_cache_clear_clears_both() {
         async fn test_redis() -> Option<RedisCache> {
@@ -499,7 +495,6 @@ mod tests {
         assert_eq!(l2_stats.size, 0);
     }
 
-    #[cfg(feature = "redis-cache")]
     #[tokio::test]
     async fn test_hybrid_cache_stats_aggregation() {
         async fn test_redis() -> Option<RedisCache> {
@@ -541,7 +536,6 @@ mod tests {
         assert!(stats.hit_rate > 0.0); // Non-zero hit rate
     }
 
-    #[cfg(feature = "redis-cache")]
     #[tokio::test]
     #[ignore] // Only run manually when testing Redis unavailability
     async fn test_hybrid_cache_redis_unavailable() {
@@ -613,17 +607,17 @@ mod tests {
         let cache = HybridCache::local_only();
 
         // Check non-existent key
-        assert_eq!(cache.exists("nonexistent_exists").await.unwrap(), false);
+        assert!(!cache.exists("nonexistent_exists").await.unwrap());
 
         // Set a value
         cache.set("exists_key", &"value", Duration::from_secs(60)).await.unwrap();
 
         // Check existing key
-        assert_eq!(cache.exists("exists_key").await.unwrap(), true);
+        assert!(cache.exists("exists_key").await.unwrap());
 
         // Delete and check again
         cache.delete("exists_key").await.unwrap();
-        assert_eq!(cache.exists("exists_key").await.unwrap(), false);
+        assert!(!cache.exists("exists_key").await.unwrap());
     }
 
     #[tokio::test]

@@ -13,8 +13,8 @@ pub async fn update_general_information() -> Result<(), lighter_common::prelude:
     let (service, db) = crate::service!();
     let id = Uuid::from_u128(0);
     let user = users::Entity::find_by_id(id).one(&db).await?.unwrap();
-    let permissions = user.permissions(&db).await?;
-    let roles = user.roles(&db).await?;
+    let permissions = user.permissions(&db, None).await?;
+    let roles = user.roles(&db, None).await?;
     let payload = UserUpdateGeneralInformationRequest {
         name: "unit test".to_string(),
         email: "root@local.test".to_string(), // Use valid email format with TLD

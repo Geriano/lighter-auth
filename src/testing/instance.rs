@@ -58,7 +58,7 @@ macro_rules! service {
 
         // Create cache for testing
         let cache = std::sync::Arc::new($crate::cache::HybridCache::local_only());
-        let authenticated = $crate::middlewares::v1::auth::Authenticated::new(cache);
+        let authenticated = $crate::middlewares::v1::auth::Authenticated::new(cache, None);
 
         let app = ::actix_web::App::new()
             .app_data(::actix_web::web::Data::new(db.clone()))

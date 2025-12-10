@@ -50,6 +50,12 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Type alias for the rate limiter instance
+type RateLimiterInstance = Arc<RateLimiter<NotKeyed, InMemoryState, DefaultClock>>;
+
+/// Type alias for the rate limiter map
+type RateLimiterMap = Arc<DashMap<IpAddr, RateLimiterInstance>>;
+
 /// Rate limiting configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
@@ -80,12 +86,7 @@ impl Default for RateLimitConfig {
 /// Per-IP rate limiter with thread-safe tracking
 #[derive(Clone)]
 pub struct IpRateLimiter {
-    limiters: Arc<
-        DashMap<
-            IpAddr,
-            Arc<RateLimiter<NotKeyed, InMemoryState, DefaultClock>>,
-        >,
-    >,
+    limiters: RateLimiterMap,
     config: RateLimitConfig,
 }
 

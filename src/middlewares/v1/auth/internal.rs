@@ -147,11 +147,10 @@ impl FromRequest for Auth {
                     ::tracing::error!("Token not found in database (may have been deleted)");
 
                     // Remove from cache if it was there
-                    if cached_auth.is_some() {
-                        if let Err(e) = authenticated.remove(id).await {
+                    if cached_auth.is_some()
+                        && let Err(e) = authenticated.remove(id).await {
                             ::tracing::warn!(error = %e, "Failed to remove stale auth from cache");
                         }
-                    }
 
                     return Err(Unauthorized::new("Token not found").into());
                 }

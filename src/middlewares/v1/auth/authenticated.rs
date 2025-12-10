@@ -27,7 +27,7 @@ impl Authenticated {
     /// Get auth from cache by token ID
     #[::tracing::instrument(skip(self), fields(token_id = %token_id))]
     pub async fn get(&self, token_id: Uuid) -> anyhow::Result<Option<Auth>> {
-        let key = CacheKey::token(&token_id);
+        let key = CacheKey::token(token_id);
 
         match self.cache.get::<Auth>(&key).await {
             Ok(result) => {
@@ -64,7 +64,7 @@ impl Authenticated {
     /// Set auth in cache with 5-minute TTL
     #[::tracing::instrument(skip(self, auth), fields(token_id = %token_id, user_id = %auth.user.id))]
     pub async fn set(&self, token_id: Uuid, auth: &Auth) -> anyhow::Result<()> {
-        let key = CacheKey::token(&token_id);
+        let key = CacheKey::token(token_id);
 
         match self.cache.set(&key, auth, Duration::from_secs(300)).await {
             Ok(_) => {
@@ -81,7 +81,7 @@ impl Authenticated {
     /// Remove auth from cache (for logout)
     #[::tracing::instrument(skip(self), fields(token_id = %token_id))]
     pub async fn remove(&self, token_id: Uuid) -> anyhow::Result<()> {
-        let key = CacheKey::token(&token_id);
+        let key = CacheKey::token(token_id);
 
         match self.cache.delete(&key).await {
             Ok(_) => {
@@ -102,7 +102,7 @@ impl Authenticated {
 
         actix::spawn(async move {
             actix::clock::sleep(delay).await;
-            let key = CacheKey::token(&token_id);
+            let key = CacheKey::token(token_id);
 
             if let Err(e) = cache.delete(&key).await {
                 ::tracing::error!(error = %e, token_id = %token_id, "Failed to remove auth from cache after delay");

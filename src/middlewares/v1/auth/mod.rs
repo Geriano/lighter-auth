@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 pub mod auth;
 pub mod authenticated;
 pub(crate) mod internal;

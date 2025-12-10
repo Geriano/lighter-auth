@@ -1,27 +1,5 @@
 #![deny(warnings)]
 
-#[macro_use]
-extern crate actix_web;
-
-pub mod api;
-pub mod cache;
-pub mod config;
-pub mod controllers;
-pub mod database;
-pub mod entities;
-pub mod metrics;
-pub mod middlewares;
-pub mod models;
-pub mod requests;
-pub mod resilience;
-pub mod responses;
-pub mod router;
-pub mod security;
-pub mod services;
-
-#[cfg(test)]
-pub mod testing;
-
 use std::io::Error;
 use std::net::SocketAddr;
 
@@ -34,12 +12,16 @@ use lighter_common::prelude::*;
 use lighter_common::database as common_database;
 use sea_orm::{QueryFilter, ColumnTrait, PaginatorTrait};
 
-use database::DatabasePool;
-use cache::Cache;
-use security::{SecurityHeadersMiddleware, RateLimitMiddleware};
-use middlewares::v1::auth::Authenticated;
-use cache::{HybridCache, LocalCache, RedisCache};
-use metrics::{AppMetrics, MetricsMiddleware};
+// Import from lighter_auth library (modules now defined in lib.rs)
+use lighter_auth::{
+    cache::{Cache, HybridCache, LocalCache, RedisCache},
+    config,
+    database::DatabasePool,
+    metrics::{AppMetrics, MetricsMiddleware},
+    middlewares::v1::auth::Authenticated,
+    router,
+    security::{RateLimitMiddleware, SecurityHeadersMiddleware},
+};
 
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
@@ -175,7 +157,7 @@ async fn main() -> Result<(), Error> {
             loop {
                 interval.tick().await;
 
-                use crate::entities::v1::tokens::{Entity as TokenEntity, Column as TokenColumn};
+                use lighter_auth::entities::v1::tokens::{Entity as TokenEntity, Column as TokenColumn};
                 use sea_orm::EntityTrait;
 
                 match TokenEntity::find()
@@ -206,7 +188,7 @@ async fn main() -> Result<(), Error> {
             loop {
                 interval.tick().await;
 
-                use crate::entities::v1::users::{Entity as UserEntity, Column as UserColumn};
+                use lighter_auth::entities::v1::users::{Entity as UserEntity, Column as UserColumn};
                 use sea_orm::EntityTrait;
 
                 match UserEntity::find()
@@ -297,7 +279,7 @@ async fn main() -> Result<(), Error> {
         let form = FormConfig::default().limit(max_payload);
 
         // Convert RateLimitConfig to the format expected by RateLimitMiddleware
-        let rate_limit_middleware_config = crate::security::rate_limit::RateLimitConfig {
+        let rate_limit_middleware_config = lighter_auth::security::rate_limit::RateLimitConfig {
             requests_per_window: rate_limit_config.requests,
             window_seconds: rate_limit_config.window,
             burst_capacity: rate_limit_config.burst,

@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "redis-cache")]
 use lighter_auth::cache::RedisCache;
 
 // ============================================================================
@@ -53,9 +52,9 @@ async fn test_local_cache_set_and_get_numbers() {
     assert_eq!(value, Some(42));
 
     // Test floats
-    cache.set("float_key", &3.14f64, Duration::from_secs(60)).await.unwrap();
+    cache.set("float_key", &42.5f64, Duration::from_secs(60)).await.unwrap();
     let value: Option<f64> = cache.get("float_key").await.unwrap();
-    assert_eq!(value, Some(3.14));
+    assert_eq!(value, Some(42.5));
 }
 
 #[tokio::test]
@@ -92,15 +91,15 @@ async fn test_local_cache_exists() {
     let cache = LocalCache::new();
 
     // Non-existent key
-    assert_eq!(cache.exists("key1").await.unwrap(), false);
+    assert!(!cache.exists("key1").await.unwrap());
 
     // Set and check
     cache.set("key1", &"value1", Duration::from_secs(60)).await.unwrap();
-    assert_eq!(cache.exists("key1").await.unwrap(), true);
+    assert!(cache.exists("key1").await.unwrap());
 
     // Delete and check
     cache.delete("key1").await.unwrap();
-    assert_eq!(cache.exists("key1").await.unwrap(), false);
+    assert!(!cache.exists("key1").await.unwrap());
 }
 
 #[tokio::test]
@@ -502,15 +501,15 @@ async fn test_hybrid_cache_exists() {
     let cache = HybridCache::local_only();
 
     // Non-existent key
-    assert_eq!(cache.exists("key1").await.unwrap(), false);
+    assert!(!cache.exists("key1").await.unwrap());
 
     // Set and check
     cache.set("key1", &"value1", Duration::from_secs(60)).await.unwrap();
-    assert_eq!(cache.exists("key1").await.unwrap(), true);
+    assert!(cache.exists("key1").await.unwrap());
 
     // Delete and check
     cache.delete("key1").await.unwrap();
-    assert_eq!(cache.exists("key1").await.unwrap(), false);
+    assert!(!cache.exists("key1").await.unwrap());
 }
 
 #[tokio::test]
@@ -594,10 +593,9 @@ async fn test_hybrid_cache_debug_trait() {
 }
 
 // ============================================================================
-// RedisCache Tests (requires redis-cache feature and running Redis)
+// RedisCache Tests (requires running Redis)
 // ============================================================================
 
-#[cfg(feature = "redis-cache")]
 mod redis_tests {
     use super::*;
 
@@ -669,11 +667,11 @@ mod redis_tests {
         };
 
         // Non-existent
-        assert_eq!(cache.exists("exists_test_key").await.unwrap(), false);
+        assert!(!cache.exists("exists_test_key").await.unwrap());
 
         // Set and check
         cache.set("exists_test_key", &"value", Duration::from_secs(60)).await.unwrap();
-        assert_eq!(cache.exists("exists_test_key").await.unwrap(), true);
+        assert!(cache.exists("exists_test_key").await.unwrap());
     }
 
     #[tokio::test]

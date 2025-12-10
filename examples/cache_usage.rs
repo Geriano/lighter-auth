@@ -6,15 +6,11 @@
 /// cargo run --example cache_usage --features sqlite
 ///
 /// # RedisCache (requires Redis running on localhost:6379)
-/// cargo run --example cache_usage --features "sqlite,redis-cache"
+/// cargo run --example cache_usage --features sqlite
 /// ```
-
-use lighter_auth::cache::{Cache, CacheKey, LocalCache};
+use lighter_auth::cache::{Cache, CacheKey, LocalCache, RedisCache};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-
-#[cfg(feature = "redis-cache")]
-use lighter_auth::cache::RedisCache;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct User {
@@ -33,25 +29,16 @@ async fn main() -> anyhow::Result<()> {
     demo_cache_operations(&local_cache, "LocalCache").await?;
 
     // Example 2: RedisCache (distributed)
-    #[cfg(feature = "redis-cache")]
-    {
-        println!("\n2. RedisCache Example:");
-        match RedisCache::new("redis://localhost:6379", "lighter-auth").await {
-            Ok(redis_cache) => {
-                demo_cache_operations(&redis_cache, "RedisCache").await?;
-            }
-            Err(e) => {
-                println!("   Failed to connect to Redis: {}", e);
-                println!("   Make sure Redis is running on localhost:6379");
-                println!("   Or run with: docker run -d -p 6379:6379 redis");
-            }
+    println!("\n2. RedisCache Example:");
+    match RedisCache::new("redis://localhost:6379", "lighter-auth").await {
+        Ok(redis_cache) => {
+            demo_cache_operations(&redis_cache, "RedisCache").await?;
         }
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
-    {
-        println!("\n2. RedisCache Example: (disabled)");
-        println!("   Run with --features redis-cache to enable RedisCache");
+        Err(e) => {
+            println!("   Failed to connect to Redis: {}", e);
+            println!("   Make sure Redis is running on localhost:6379");
+            println!("   Or run with: docker run -d -p 6379:6379 redis");
+        }
     }
 
     Ok(())

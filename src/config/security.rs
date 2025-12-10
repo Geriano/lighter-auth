@@ -3,6 +3,7 @@ use lighter_common::config::*;
 
 /// Security configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SecurityConfig {
     /// CORS configuration
     #[serde(default = "CorsConfig::default")]
@@ -154,15 +155,6 @@ fn default_headers_referrer_policy() -> String {
     "strict-origin-when-cross-origin".to_string()
 }
 
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            cors: CorsConfig::default(),
-            rate_limit: RateLimitConfig::default(),
-            headers: SecurityHeadersConfig::default(),
-        }
-    }
-}
 
 impl Default for CorsConfig {
     fn default() -> Self {

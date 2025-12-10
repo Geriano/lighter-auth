@@ -438,11 +438,11 @@ async fn test_comprehensive_xss_vectors() {
 
             // Verify response is valid JSON - this proves safety
             let parsed_json: serde_json::Value = serde_json::from_str(&body_str)
-                .expect(&format!("Response should be valid JSON for vector '{}'", xss_vector));
+                .unwrap_or_else(|_| panic!("Response should be valid JSON for vector '{}'", xss_vector));
 
             // Extract name and verify it matches (case-insensitive)
-            if let Some(name_val) = parsed_json.get("name") {
-                if let Some(name_str) = name_val.as_str() {
+            if let Some(name_val) = parsed_json.get("name")
+                && let Some(name_str) = name_val.as_str() {
                     assert_eq!(
                         name_str.to_lowercase(),
                         xss_vector.to_lowercase(),
@@ -450,7 +450,6 @@ async fn test_comprehensive_xss_vectors() {
                         xss_vector
                     );
                 }
-            }
         }
     }
 }

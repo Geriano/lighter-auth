@@ -369,8 +369,8 @@ impl CircuitBreaker {
                 self.stats.record_success();
 
                 // Check for HalfOpen → Closed transition
-                if current_state == CircuitState::HalfOpen {
-                    if self.stats.consecutive_successes() >= self.config.success_threshold as u64 {
+                if current_state == CircuitState::HalfOpen
+                    && self.stats.consecutive_successes() >= self.config.success_threshold as u64 {
                         let mut state = self.state.lock().unwrap();
                         if *state == CircuitState::HalfOpen {
                             *state = CircuitState::Closed;
@@ -382,7 +382,6 @@ impl CircuitBreaker {
                             );
                         }
                     }
-                }
 
                 Ok(result)
             }

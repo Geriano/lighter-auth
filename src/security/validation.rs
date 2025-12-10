@@ -449,7 +449,7 @@ mod tests {
             // SQL keywords are still present but special chars are escaped
             // This is acceptable since the input is meant for display, not SQL execution
             // The key is that quotes and other dangerous chars are escaped
-            assert!(sanitized.len() > 0);
+            assert!(!sanitized.is_empty());
         }
     }
 

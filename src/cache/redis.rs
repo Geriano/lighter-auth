@@ -340,13 +340,13 @@ mod tests {
         let cache = test_redis().await;
 
         // Check non-existent key
-        assert_eq!(cache.exists("nonexistent_exists_test").await.unwrap(), false);
+        assert!(!cache.exists("nonexistent_exists_test").await.unwrap());
 
         // Set a value
         cache.set("key1", &"value1", Duration::from_secs(60)).await.unwrap();
 
         // Check existing key
-        assert_eq!(cache.exists("key1").await.unwrap(), true);
+        assert!(cache.exists("key1").await.unwrap());
     }
 
     #[tokio::test]

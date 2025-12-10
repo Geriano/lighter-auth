@@ -3,6 +3,7 @@ use lighter_common::config::*;
 
 /// Resilience configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ResilienceConfig {
     /// Circuit breaker configuration
     #[serde(default = "CircuitBreakerConfig::default")]
@@ -106,14 +107,6 @@ fn default_retry_multiplier() -> f64 {
     2.0
 }
 
-impl Default for ResilienceConfig {
-    fn default() -> Self {
-        Self {
-            circuit_breaker: CircuitBreakerConfig::default(),
-            retry: RetryConfig::default(),
-        }
-    }
-}
 
 impl Default for CircuitBreakerConfig {
     fn default() -> Self {

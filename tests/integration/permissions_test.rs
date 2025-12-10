@@ -839,7 +839,7 @@ async fn test_user_model_permissions_method() {
         .expect("User should exist");
 
     let permissions = user_model
-        .permissions(&db)
+        .permissions(&db, None)
         .await
         .expect("Failed to get permissions");
 
@@ -877,7 +877,7 @@ async fn test_user_model_roles_method() {
         .expect("Failed to find user")
         .expect("User should exist");
 
-    let roles = user_model.roles(&db).await.expect("Failed to get roles");
+    let roles = user_model.roles(&db, None).await.expect("Failed to get roles");
 
     assert_eq!(roles.len(), 2, "User should have 2 roles");
 
@@ -1049,7 +1049,7 @@ async fn test_paginate_permissions_via_api() {
 
     // Create user and token for authentication
     let user = setup::create_test_user(&db, &hasher).await.unwrap();
-    let token = user.generate_token(&db, None).await.unwrap();
+    let token = user.generate_token(&db, None, None).await.unwrap();
     let token_str = lighter_common::base58::to_string(token.id);
 
     // Create multiple permissions
@@ -1162,7 +1162,7 @@ async fn test_create_user_with_direct_permissions_via_api() {
 
     // Create admin user to authenticate
     let admin = setup::create_test_user(&db, &hasher).await.unwrap();
-    let token = admin.generate_token(&db, None).await.unwrap();
+    let token = admin.generate_token(&db, None, None).await.unwrap();
     let token_str = lighter_common::base58::to_string(token.id);
 
     // Create user with permission
@@ -1223,7 +1223,7 @@ async fn test_authenticated_user_includes_permissions_and_roles() {
     assign_role_to_user(&db, user.id, role.id).await;
 
     // Generate token
-    let token = user.generate_token(&db, None).await.unwrap();
+    let token = user.generate_token(&db, None, None).await.unwrap();
     let token_str = lighter_common::base58::to_string(token.id);
 
     // Get authenticated user

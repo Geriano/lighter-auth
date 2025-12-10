@@ -283,13 +283,13 @@ mod tests {
         let cache = LocalCache::new();
 
         // Check non-existent key
-        assert_eq!(cache.exists("key1").await.unwrap(), false);
+        assert!(!cache.exists("key1").await.unwrap());
 
         // Set a value
         cache.set("key1", &"value1", Duration::from_secs(60)).await.unwrap();
 
         // Check existing key
-        assert_eq!(cache.exists("key1").await.unwrap(), true);
+        assert!(cache.exists("key1").await.unwrap());
     }
 
     #[tokio::test]

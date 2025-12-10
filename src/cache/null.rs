@@ -159,7 +159,7 @@ mod tests {
     async fn test_null_cache_exists_returns_false() {
         let cache = NullCache::new();
         let exists = cache.exists("test_key").await.unwrap();
-        assert_eq!(exists, false);
+        assert!(!exists);
     }
 
     #[tokio::test]
@@ -182,7 +182,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_null_cache_default() {
-        let cache = NullCache::default();
+        let cache = NullCache;
         let value: Option<String> = cache.get("key").await.unwrap();
         assert_eq!(value, None);
     }

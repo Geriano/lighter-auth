@@ -35,7 +35,7 @@ fn create_test_auth(user_id: Uuid, token_id: Uuid) -> Auth {
 async fn test_auth_cache_hit() {
     // Setup: Create cache and authenticated instance
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Authenticated::new(cache.clone());
+    let authenticated = Authenticated::new(cache.clone(), None);
 
     let user_id = Uuid::new_v4();
     let token_id = Uuid::new_v4();
@@ -70,7 +70,7 @@ async fn test_auth_cache_hit() {
 async fn test_auth_cache_miss() {
     // Setup: Create cache and authenticated instance
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Authenticated::new(cache);
+    let authenticated = Authenticated::new(cache, None);
 
     let token_id = Uuid::new_v4();
 
@@ -87,7 +87,7 @@ async fn test_auth_cache_miss() {
 async fn test_auth_cache_invalidation() {
     // Setup: Create cache and authenticated instance
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Authenticated::new(cache.clone());
+    let authenticated = Authenticated::new(cache.clone(), None);
 
     let user_id = Uuid::new_v4();
     let token_id = Uuid::new_v4();
@@ -122,14 +122,14 @@ async fn test_auth_cache_invalidation() {
 async fn test_auth_cache_ttl_expiration() {
     // Setup: Create cache with direct access for testing
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Authenticated::new(cache.clone());
+    let authenticated = Authenticated::new(cache.clone(), None);
 
     let user_id = Uuid::new_v4();
     let token_id = Uuid::new_v4();
     let auth = create_test_auth(user_id, token_id);
 
     // Manually set with very short TTL (100ms) using cache directly
-    let key = CacheKey::token(&token_id);
+    let key = CacheKey::token(token_id);
     cache
         .set(&key, &auth, Duration::from_millis(100))
         .await
@@ -154,7 +154,7 @@ async fn test_auth_cache_ttl_expiration() {
 async fn test_auth_cache_concurrent_access() {
     // Setup: Create shared cache and authenticated instance
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Arc::new(Authenticated::new(cache.clone()));
+    let authenticated = Arc::new(Authenticated::new(cache.clone(), None));
 
     let mut handles = vec![];
 
@@ -201,7 +201,7 @@ async fn test_auth_cache_concurrent_access() {
 async fn test_auth_cache_remove_delay() {
     // Setup: Create cache and authenticated instance
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Authenticated::new(cache.clone());
+    let authenticated = Authenticated::new(cache.clone(), None);
 
     let user_id = Uuid::new_v4();
     let token_id = Uuid::new_v4();
@@ -237,7 +237,7 @@ async fn test_auth_cache_remove_delay() {
 async fn test_auth_cache_multiple_users() {
     // Setup: Create cache and authenticated instance
     let cache = Arc::new(HybridCache::local_only());
-    let authenticated = Authenticated::new(cache.clone());
+    let authenticated = Authenticated::new(cache.clone(), None);
 
     // Create multiple users with different tokens
     let user1_id = Uuid::new_v4();
@@ -317,7 +317,6 @@ async fn test_auth_cache_multiple_users() {
     assert_eq!(stats.size, 2);
 }
 
-#[cfg(feature = "redis-cache")]
 #[tokio::test]
 async fn test_auth_cache_with_redis() {
     use lighter_auth::cache::{LocalCache, RedisCache};
@@ -340,7 +339,7 @@ async fn test_auth_cache_with_redis() {
     // Setup hybrid cache with Redis
     let l1 = LocalCache::new();
     let cache = Arc::new(HybridCache::new(l1, Some(l2)));
-    let authenticated = Authenticated::new(cache.clone());
+    let authenticated = Authenticated::new(cache.clone(), None);
 
     let user_id = Uuid::new_v4();
     let token_id = Uuid::new_v4();
@@ -363,7 +362,7 @@ async fn test_auth_cache_with_redis() {
     assert_eq!(retrieved.user.name, "Test User");
 
     // Clear L1 to force L2 lookup
-    let key = CacheKey::token(&token_id);
+    let key = CacheKey::token(token_id);
     cache.delete(&key).await.expect("Failed to delete");
 
     // This would normally demonstrate L2 backfill, but since we just deleted

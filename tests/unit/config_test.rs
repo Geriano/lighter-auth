@@ -20,6 +20,7 @@ mod utils {
     use std::path::Path;
 
     /// Create a temporary config file with the given content
+    #[allow(dead_code)]
     pub fn create_temp_config(path: &str, content: &str) {
         if let Some(parent) = Path::new(path).parent() {
             fs::create_dir_all(parent).unwrap();
@@ -28,6 +29,7 @@ mod utils {
     }
 
     /// Remove a temporary config file
+    #[allow(dead_code)]
     pub fn remove_temp_config(path: &str) {
         let _ = fs::remove_file(path);
     }
