@@ -5,3 +5,4 @@ id_rsa
 id_rsa.pub
 .env
 .DS_Store
+test_results
