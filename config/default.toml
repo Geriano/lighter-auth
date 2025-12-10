@@ -150,7 +150,7 @@ shards = 0
 
 # Redis Cache Settings
 [cache.redis]
-# Enable Redis cache (requires redis-cache feature)
+# Enable Redis cache (Redis is now always available)
 enabled = false
 
 # Redis connection URL
