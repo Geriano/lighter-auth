@@ -342,7 +342,9 @@ mod tests {
             let url = std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-            RedisCache::new(&url, "test-hybrid").await.ok()
+            RedisCache::with_timeout(&url, "test-hybrid", Duration::from_secs(2))
+                .await
+                .ok()
         }
 
         let l2 = test_redis().await;
@@ -392,7 +394,9 @@ mod tests {
             let url = std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-            RedisCache::new(&url, "test-hybrid-set").await.ok()
+            RedisCache::with_timeout(&url, "test-hybrid-set", Duration::from_secs(2))
+                .await
+                .ok()
         }
 
         let l2 = test_redis().await;
@@ -426,7 +430,9 @@ mod tests {
             let url = std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-            RedisCache::new(&url, "test-hybrid-delete").await.ok()
+            RedisCache::with_timeout(&url, "test-hybrid-delete", Duration::from_secs(2))
+                .await
+                .ok()
         }
 
         let l2 = test_redis().await;
@@ -463,7 +469,9 @@ mod tests {
             let url = std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-            RedisCache::new(&url, "test-hybrid-clear").await.ok()
+            RedisCache::with_timeout(&url, "test-hybrid-clear", Duration::from_secs(2))
+                .await
+                .ok()
         }
 
         let l2 = test_redis().await;
@@ -501,7 +509,9 @@ mod tests {
             let url = std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-            RedisCache::new(&url, "test-hybrid-stats").await.ok()
+            RedisCache::with_timeout(&url, "test-hybrid-stats", Duration::from_secs(2))
+                .await
+                .ok()
         }
 
         let l2 = test_redis().await;
@@ -545,14 +555,18 @@ mod tests {
         // 2. Run: cargo test --features sqlite test_hybrid_cache_redis_unavailable -- --ignored --nocapture
         // 3. Start Redis again after test
 
-        // Try to connect to Redis (should fail)
-        let l2_result = RedisCache::new("redis://localhost:9999", "test-unavailable").await;
+        // Try to connect to Redis with 2 second timeout (should fail quickly)
+        let l2_result = RedisCache::with_timeout(
+            "redis://localhost:9999",
+            "test-unavailable",
+            Duration::from_secs(2)
+        ).await;
 
         let l1 = LocalCache::new();
         let cache = if l2_result.is_ok() {
             HybridCache::new(l1, Some(l2_result.unwrap()))
         } else {
-            println!("Redis unavailable (expected for this test)");
+            println!("Redis unavailable (expected) - error: {:?}", l2_result.err());
             HybridCache::new(l1, None)
         };
 

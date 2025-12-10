@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Example 2: RedisCache (distributed)
     println!("\n2. RedisCache Example:");
-    match RedisCache::new("redis://localhost:6379", "lighter-auth").await {
+    match RedisCache::with_timeout("redis://localhost:6379", "lighter-auth", Duration::from_secs(5)).await {
         Ok(redis_cache) => {
             demo_cache_operations(&redis_cache, "RedisCache").await?;
         }

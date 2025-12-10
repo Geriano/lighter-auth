@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::time::timeout;
 
 use super::{Cache, CacheStats};
 
@@ -39,6 +40,8 @@ pub struct RedisCache {
 impl RedisCache {
     /// Create a new RedisCache with a connection string
     ///
+    /// Uses a default timeout of 3 seconds for connection attempts.
+    ///
     /// # Arguments
     /// * `url` - Redis connection URL (e.g., "redis://localhost:6379")
     /// * `prefix` - Key prefix for namespace isolation (e.g., "lighter-auth")
@@ -54,12 +57,49 @@ impl RedisCache {
     /// }
     /// ```
     pub async fn new(url: &str, prefix: &str) -> Result<Self> {
+        Self::with_timeout(url, prefix, Duration::from_secs(3)).await
+    }
+
+    /// Create a new RedisCache with a connection string and custom timeout
+    ///
+    /// # Arguments
+    /// * `url` - Redis connection URL (e.g., "redis://localhost:6379")
+    /// * `prefix` - Key prefix for namespace isolation (e.g., "lighter-auth")
+    /// * `connection_timeout` - Maximum time to wait for connection
+    ///
+    /// # Example
+    /// ```no_run
+    /// use lighter_auth::cache::RedisCache;
+    /// use std::time::Duration;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> anyhow::Result<()> {
+    ///     let cache = RedisCache::with_timeout(
+    ///         "redis://localhost:6379",
+    ///         "lighter-auth",
+    ///         Duration::from_secs(5)
+    ///     ).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn with_timeout(
+        url: &str,
+        prefix: &str,
+        connection_timeout: Duration,
+    ) -> Result<Self> {
         let client = Client::open(url)
             .context("Failed to create Redis client")?;
 
-        let conn_manager = ConnectionManager::new(client.clone())
-            .await
-            .context("Failed to create Redis connection manager")?;
+        let conn_manager = timeout(
+            connection_timeout,
+            ConnectionManager::new(client.clone())
+        )
+        .await
+        .context(format!(
+            "Redis connection timeout after {:?}. Check Redis is running at: {}",
+            connection_timeout, url
+        ))?
+        .context("Failed to create Redis connection manager")?;
 
         Ok(Self {
             client,
@@ -73,13 +113,33 @@ impl RedisCache {
 
     /// Create a new RedisCache from an existing client
     ///
+    /// Uses a default timeout of 3 seconds for connection attempts.
+    ///
     /// # Arguments
     /// * `client` - Redis client
     /// * `prefix` - Key prefix for namespace isolation
     pub async fn from_client(client: Client, prefix: &str) -> Result<Self> {
-        let conn_manager = ConnectionManager::new(client.clone())
-            .await
-            .context("Failed to create Redis connection manager")?;
+        Self::from_client_with_timeout(client, prefix, Duration::from_secs(3)).await
+    }
+
+    /// Create a new RedisCache from an existing client with custom timeout
+    ///
+    /// # Arguments
+    /// * `client` - Redis client
+    /// * `prefix` - Key prefix for namespace isolation
+    /// * `connection_timeout` - Maximum time to wait for connection
+    pub async fn from_client_with_timeout(
+        client: Client,
+        prefix: &str,
+        connection_timeout: Duration,
+    ) -> Result<Self> {
+        let conn_manager = timeout(
+            connection_timeout,
+            ConnectionManager::new(client.clone())
+        )
+        .await
+        .context(format!("Connection manager timeout after {:?}", connection_timeout))?
+        .context("Failed to create connection manager")?;
 
         Ok(Self {
             client,

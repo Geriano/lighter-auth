@@ -325,7 +325,7 @@ async fn test_auth_cache_with_redis() {
     let redis_url =
         std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-    let l2 = match RedisCache::new(&redis_url, "test-auth-cache").await {
+    let l2 = match RedisCache::with_timeout(&redis_url, "test-auth-cache", std::time::Duration::from_secs(2)).await {
         Ok(redis) => redis,
         Err(_) => {
             println!("Skipping Redis test: Redis not available");

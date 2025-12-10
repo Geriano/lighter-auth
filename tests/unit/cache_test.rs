@@ -604,7 +604,9 @@ mod redis_tests {
         let url = std::env::var("REDIS_URL")
             .unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
-        RedisCache::new(&url, "test-cache-unit").await.ok()
+        RedisCache::with_timeout(&url, "test-cache-unit", Duration::from_secs(2))
+            .await
+            .ok()
     }
 
     #[tokio::test]
@@ -775,10 +777,10 @@ mod redis_tests {
     #[tokio::test]
     #[ignore]
     async fn test_redis_cache_key_prefix_isolation() {
-        let cache1 = RedisCache::new("redis://localhost:6379", "app1")
+        let cache1 = RedisCache::with_timeout("redis://localhost:6379", "app1", Duration::from_secs(2))
             .await
             .unwrap();
-        let cache2 = RedisCache::new("redis://localhost:6379", "app2")
+        let cache2 = RedisCache::with_timeout("redis://localhost:6379", "app2", Duration::from_secs(2))
             .await
             .unwrap();
 

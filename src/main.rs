@@ -77,7 +77,7 @@ async fn main() -> Result<(), Error> {
                 source = if std::env::var("REDIS_URL").is_ok() { "environment" } else { "config" },
                 "Attempting to connect to Redis"
             );
-            match RedisCache::new(&url, "lighter-auth").await {
+            match RedisCache::with_timeout(&url, "lighter-auth", std::time::Duration::from_secs(5)).await {
                 Ok(redis) => {
                     ::tracing::info!("Redis connection established, using hybrid cache (L1 + L2)");
                     Some(redis)
