@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use super::{Cache, CacheStats, LocalCache};
-
-#[cfg(feature = "redis-cache")]
 use super::RedisCache;
 
 /// Hybrid cache with L1 (LocalCache) and optional L2 (RedisCache)
@@ -54,12 +52,7 @@ pub struct HybridCache {
     l1: LocalCache,
 
     /// L2 cache: optional distributed persistent cache
-    #[cfg(feature = "redis-cache")]
     l2: Option<RedisCache>,
-
-    #[cfg(not(feature = "redis-cache"))]
-    #[allow(dead_code)]
-    l2: Option<()>,
 }
 
 impl HybridCache {
@@ -72,36 +65,19 @@ impl HybridCache {
     /// # Example
     /// ```ignore
     /// use lighter_auth::cache::{HybridCache, LocalCache};
-    ///
-    /// #[cfg(feature = "redis-cache")]
     /// use lighter_auth::cache::RedisCache;
     ///
     /// #[tokio::main]
     /// async fn main() -> anyhow::Result<()> {
     ///     let l1 = LocalCache::new();
-    ///
-    ///     #[cfg(feature = "redis-cache")]
-    ///     {
-    ///         let l2 = RedisCache::new("redis://localhost:6379", "app").await?;
-    ///         let cache = HybridCache::new(l1, Some(l2));
-    ///     }
-    ///
-    ///     #[cfg(not(feature = "redis-cache"))]
-    ///     {
-    ///         let cache = HybridCache::new(l1, None);
-    ///     }
+    ///     let l2 = RedisCache::new("redis://localhost:6379", "app").await?;
+    ///     let cache = HybridCache::new(l1, Some(l2));
     ///
     ///     Ok(())
     /// }
     /// ```
-    #[cfg(feature = "redis-cache")]
     pub fn new(l1: LocalCache, l2: Option<RedisCache>) -> Self {
         Self { l1, l2 }
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
-    pub fn new(l1: LocalCache, _l2: Option<()>) -> Self {
-        Self { l1, l2: None }
     }
 
     /// Create a HybridCache in L1-only mode (no Redis)
@@ -123,14 +99,8 @@ impl HybridCache {
     }
 
     /// Check if L2 cache is available
-    #[cfg(feature = "redis-cache")]
     fn has_l2(&self) -> bool {
         self.l2.is_some()
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
-    fn has_l2(&self) -> bool {
-        false
     }
 }
 
@@ -165,7 +135,6 @@ impl Cache for HybridCache {
         }
 
         // L1 miss, try L2 if available
-        #[cfg(feature = "redis-cache")]
         if let Some(ref l2) = self.l2 {
             match l2.get::<V>(key).await {
                 Ok(Some(value)) => {
@@ -205,7 +174,6 @@ impl Cache for HybridCache {
         ::tracing::debug!("Written to L1 cache");
 
         // Write to L2 if available (best effort, ignore errors)
-        #[cfg(feature = "redis-cache")]
         if let Some(ref l2) = self.l2 {
             if let Err(e) = l2.set(key, value, ttl).await {
                 ::tracing::warn!(error = %e, "Failed to write to L2 cache (Redis unavailable?), continuing with L1 only");
@@ -227,7 +195,6 @@ impl Cache for HybridCache {
         ::tracing::debug!("Deleted from L1 cache");
 
         // Delete from L2 if available (best effort, ignore errors)
-        #[cfg(feature = "redis-cache")]
         if let Some(ref l2) = self.l2 {
             if let Err(e) = l2.delete(key).await {
                 ::tracing::warn!(error = %e, "Failed to delete from L2 cache (Redis unavailable?), continuing with L1 only");
@@ -256,7 +223,6 @@ impl Cache for HybridCache {
         }
 
         // L1 miss, try L2 if available
-        #[cfg(feature = "redis-cache")]
         if let Some(ref l2) = self.l2 {
             match l2.exists(key).await {
                 Ok(exists) => {
@@ -286,7 +252,6 @@ impl Cache for HybridCache {
         ::tracing::debug!("Cleared L1 cache");
 
         // Clear L2 if available (best effort, ignore errors)
-        #[cfg(feature = "redis-cache")]
         if let Some(ref l2) = self.l2 {
             if let Err(e) = l2.clear().await {
                 ::tracing::warn!(error = %e, "Failed to clear L2 cache (Redis unavailable?), continuing with L1 only");
@@ -304,7 +269,6 @@ impl Cache for HybridCache {
         let l1_stats = self.l1.stats().await.context("Failed to get L1 stats")?;
 
         // Get L2 stats if available
-        #[cfg(feature = "redis-cache")]
         if let Some(ref l2) = self.l2 {
             match l2.stats().await {
                 Ok(l2_stats) => {

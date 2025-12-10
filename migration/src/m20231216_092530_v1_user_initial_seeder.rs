@@ -1,6 +1,6 @@
 use argon2::{
+    Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHasher as Argon2Hasher, SaltString},
-    Argon2, Algorithm, Params, Version,
 };
 use lighter_common::prelude::*;
 use rand::rngs::OsRng;
@@ -27,9 +27,9 @@ impl MigrationTrait for Migration {
 
         // Create Argon2id hasher with production-ready parameters
         let params = Params::new(
-            65536, // 64 MB memory cost
-            3,     // 3 iterations
-            4,     // 4 threads parallelism
+            65536,    // 64 MB memory cost
+            3,        // 3 iterations
+            4,        // 4 threads parallelism
             Some(32), // 32 bytes hash length
         )
         .expect("Invalid Argon2 parameters");
@@ -39,7 +39,7 @@ impl MigrationTrait for Migration {
         // Generate salt and hash password
         let salt = SaltString::generate(&mut OsRng);
         let password_hash = argon2
-            .hash_password(b"password", &salt)
+            .hash_password(b"Password!23", &salt)
             .expect("Failed to hash password")
             .to_string();
 

@@ -11,7 +11,7 @@ environment = "development"
 [database]
 # Use SQLite in-memory database for development
 # Fast startup, no persistence needed for local testing
-url = "sqlite::memory:"
+url = "postgres://postgres:postgres@postgres:5432/auth"
 max_connections = 10
 log_queries = true
 auto_migrate = true

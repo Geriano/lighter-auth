@@ -35,11 +35,8 @@ use lighter_common::database as common_database;
 use database::DatabasePool;
 use security::{SecurityHeadersMiddleware, RateLimitMiddleware};
 use middlewares::v1::auth::Authenticated;
-use cache::{HybridCache, LocalCache};
+use cache::{HybridCache, LocalCache, RedisCache};
 use metrics::{AppMetrics, MetricsMiddleware};
-
-#[cfg(feature = "redis-cache")]
-use cache::RedisCache;
 
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
@@ -77,7 +74,6 @@ async fn main() -> Result<(), Error> {
     // Initialize cache (HybridCache with L1 + optional L2)
     let l1 = LocalCache::new();
 
-    #[cfg(feature = "redis-cache")]
     let l2 = match std::env::var("REDIS_URL") {
         Ok(url) => {
             ::tracing::info!(redis_url = %url, "Attempting to connect to Redis");
@@ -98,16 +94,8 @@ async fn main() -> Result<(), Error> {
         }
     };
 
-    #[cfg(not(feature = "redis-cache"))]
-    let l2: Option<()> = None;
-
-    let cache = std::sync::Arc::new(HybridCache::new(l1, l2));
-
-    #[cfg(feature = "redis-cache")]
     let cache_type = if l2.is_some() { "hybrid (L1+L2)" } else { "local (L1 only)" };
-
-    #[cfg(not(feature = "redis-cache"))]
-    let cache_type = "local (L1 only)";
+    let cache = std::sync::Arc::new(HybridCache::new(l1, l2));
 
     ::tracing::info!(
         cache_type = cache_type,

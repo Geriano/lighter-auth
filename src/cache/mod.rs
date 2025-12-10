@@ -1,16 +1,10 @@
 pub mod local;
-
-#[cfg(feature = "redis-cache")]
 pub mod redis;
-
 pub mod hybrid;
 pub mod null;
 
 pub use local::LocalCache;
-
-#[cfg(feature = "redis-cache")]
 pub use redis::RedisCache;
-
 pub use hybrid::HybridCache;
 pub use null::NullCache;
 

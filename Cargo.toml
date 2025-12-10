@@ -24,7 +24,6 @@ sqlite = [
   "lighter-auth-migration/sqlite",
   "sea-orm/sqlx-sqlite",
 ]
-redis-cache = ["redis"]
 
 [dependencies]
 lighter-common = { workspace = true }
@@ -44,7 +43,7 @@ config = { workspace = true }
 argon2 = { workspace = true }
 governor = { workspace = true }
 tower = { workspace = true }
-redis = { workspace = true, optional = true }
+redis = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { version = "0.1", features = ["attributes"] }
