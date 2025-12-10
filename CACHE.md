@@ -61,19 +61,19 @@ Distributed cache using Redis with async connection pooling.
 - TTL support via Redis SET EX
 - Metrics tracking
 
-**Enable Feature:**
-```toml
-[features]
-redis-cache = ["redis"]
+**Dependencies:**
 
+Redis is now always available as a required dependency (no feature flag needed):
+
+```toml
 [dependencies]
 redis = { version = "0.27", features = ["aio", "tokio-comp", "connection-manager"] }
 ```
 
-**Build with Redis:**
+**Build and Test:**
 ```bash
-cargo build --features redis-cache
-cargo test --features "sqlite,redis-cache"
+cargo build
+cargo test --features sqlite
 ```
 
 **Usage:**
@@ -239,10 +239,10 @@ cargo test --features sqlite test_local_cache_set_and_get
 docker run -d -p 6379:6379 redis
 
 # Run RedisCache tests (requires Redis)
-cargo test --features "sqlite,redis-cache" cache::redis -- --ignored
+cargo test --features sqlite cache::redis -- --ignored
 
 # Run all tests including integration
-cargo test --features "sqlite,redis-cache" -- --ignored
+cargo test --features sqlite -- --ignored
 ```
 
 ### HybridCache Tests
@@ -252,10 +252,10 @@ cargo test --features sqlite cache::hybrid
 
 # Run HybridCache tests with Redis (requires Redis)
 docker run -d -p 6379:6379 redis
-cargo test --features "sqlite,redis-cache" cache::hybrid -- --ignored
+cargo test --features sqlite cache::hybrid -- --ignored
 
 # Run all cache tests
-cargo test --features "sqlite,redis-cache" cache:: -- --ignored
+cargo test --features sqlite cache:: -- --ignored
 ```
 
 **Note**: RedisCache and some HybridCache tests are marked `#[ignore]` by default because they require a running Redis instance. Use `--ignored` flag to run them.
@@ -545,7 +545,7 @@ See `examples/cache_usage.rs` for a complete working example:
 cargo run --example cache_usage --features sqlite
 
 # Run example with both caches (requires Redis)
-cargo run --example cache_usage --features "sqlite,redis-cache"
+cargo run --example cache_usage --features sqlite
 ```
 
 ## API Documentation
@@ -553,7 +553,7 @@ cargo run --example cache_usage --features "sqlite,redis-cache"
 Generate and view full API documentation:
 
 ```bash
-cargo doc --features "redis-cache" --open
+cargo doc --open
 ```
 
 ## Roadmap

@@ -19,7 +19,7 @@ This document provides a comprehensive summary of the unit tests created for the
 cargo test --features sqlite --test unit_tests cache_test
 
 # Run all tests including ignored Redis tests (requires Redis running)
-cargo test --features "sqlite redis-cache" --test unit_tests cache_test -- --ignored
+cargo test --features sqlite --test unit_tests cache_test -- --ignored
 ```
 
 ### Test Results
@@ -84,7 +84,7 @@ test result: ok. 28 passed; 0 failed; 0 ignored
 **Utilities:**
 - ✅ `test_hybrid_cache_debug_trait` - Debug trait implementation
 
-### 3. RedisCache Tests (11 tests - requires redis-cache feature + running Redis)
+### 3. RedisCache Tests (11 tests - requires running Redis)
 
 **Note**: These tests are marked with `#[ignore]` and only run when Redis is available.
 
@@ -204,7 +204,7 @@ export REDIS_URL=redis://localhost:6379
 ### Run Redis Tests
 ```bash
 # Run only Redis tests (requires Redis running)
-cargo test --features "sqlite redis-cache" --test unit_tests redis_tests -- --ignored --nocapture
+cargo test --features sqlite --test unit_tests redis_tests -- --ignored --nocapture
 ```
 
 ## Known Limitations
@@ -243,7 +243,7 @@ When cache API changes:
 - name: Run cache tests with Redis
   run: |
     docker run -d -p 6379:6379 redis:latest
-    cargo test --features "sqlite redis-cache" --test unit_tests redis_tests -- --ignored
+    cargo test --features sqlite --test unit_tests redis_tests -- --ignored
 ```
 
 ### GitLab CI
@@ -258,7 +258,7 @@ test:cache:redis:
   variables:
     REDIS_URL: redis://redis:6379
   script:
-    - cargo test --features "sqlite redis-cache" --test unit_tests redis_tests -- --ignored
+    - cargo test --features sqlite --test unit_tests redis_tests -- --ignored
 ```
 
 ## Performance Benchmarks
@@ -291,8 +291,8 @@ test:cache:redis:
 ### Tests Fail: "Already borrowed"
 **Solution**: Ensure tests don't share mutable state. Each test should create its own cache instance.
 
-### Compilation Error: "feature redis-cache not found"
-**Solution**: The redis-cache feature must be enabled in Cargo.toml for Redis tests to compile.
+### Compilation Error: "unresolved import `redis`"
+**Solution**: Redis is now always available as a dependency. If you encounter import errors, ensure the project is built with `cargo build`.
 
 ## Future Enhancements
 

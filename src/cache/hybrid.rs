@@ -26,18 +26,14 @@ use super::RedisCache;
 ///
 /// ## Example
 /// ```ignore
-/// use lighter_auth::cache::{HybridCache, LocalCache};
-///
-/// #[cfg(feature = "redis-cache")]
-/// use lighter_auth::cache::RedisCache;
+/// use lighter_auth::cache::{HybridCache, LocalCache, RedisCache};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
 ///     // L1-only mode (no Redis)
 ///     let cache = HybridCache::local_only();
 ///
-///     // With Redis (requires redis-cache feature)
-///     #[cfg(feature = "redis-cache")]
+///     // With Redis (Redis is now always available)
 ///     {
 ///         let l1 = LocalCache::new();
 ///         let l2 = RedisCache::new("redis://localhost:6379", "app").await?;
@@ -552,7 +548,7 @@ mod tests {
         // This test simulates Redis being unavailable
         // To test manually:
         // 1. Stop Redis: docker stop redis (or similar)
-        // 2. Run: cargo test --features redis-cache test_hybrid_cache_redis_unavailable -- --ignored --nocapture
+        // 2. Run: cargo test --features sqlite test_hybrid_cache_redis_unavailable -- --ignored --nocapture
         // 3. Start Redis again after test
 
         // Try to connect to Redis (should fail)
