@@ -74,9 +74,24 @@ async fn main() -> Result<(), Error> {
     // Initialize cache (HybridCache with L1 + optional L2)
     let l1 = LocalCache::new();
 
-    let l2 = match std::env::var("REDIS_URL") {
-        Ok(url) => {
-            ::tracing::info!(redis_url = %url, "Attempting to connect to Redis");
+    // Redis L2 cache: check config or environment variable (env var takes precedence)
+    let redis_url = std::env::var("REDIS_URL")
+        .ok()
+        .or_else(|| {
+            if app_config.cache.redis.enabled {
+                Some(app_config.cache.redis.url.clone())
+            } else {
+                None
+            }
+        });
+
+    let l2 = match redis_url {
+        Some(url) => {
+            ::tracing::info!(
+                redis_url = %url,
+                source = if std::env::var("REDIS_URL").is_ok() { "environment" } else { "config" },
+                "Attempting to connect to Redis"
+            );
             match RedisCache::new(&url, "lighter-auth").await {
                 Ok(redis) => {
                     ::tracing::info!("Redis connection established, using hybrid cache (L1 + L2)");
@@ -88,8 +103,11 @@ async fn main() -> Result<(), Error> {
                 }
             }
         }
-        Err(_) => {
-            ::tracing::info!("REDIS_URL not set, using local cache only");
+        None => {
+            ::tracing::info!(
+                config_enabled = %app_config.cache.redis.enabled,
+                "Redis not configured, using local cache only"
+            );
             None
         }
     };
